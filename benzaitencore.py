@@ -30,7 +30,6 @@ ENCODED_DIM = 32  # 潜在空間の次元数
 LSTM_DIM = 1024  # LSTM層のノード数
 
 
-
 # エンコーダを構築
 def make_encoder(prior, seq_length, input_dim):
     encoder = tf.keras.Sequential()
@@ -106,7 +105,7 @@ def note_seq_to_onehot(note_seq):
     N = len(note_seq)
     matrix = np.zeros((N, M))
     for i in range(N):
-        if note_seq[i] != None:
+        if note_seq[i] is not None:
             matrix_idx_r = (note_seq[i].pitch.midi - NOTENUM_FROM) % M
             matrix[i, matrix_idx_r] = 1
     return matrix
@@ -132,7 +131,7 @@ def read_chord_file(file):
                 assign_idx = m * 4 + b
                 chord_seq[assign_idx] = smbl
     for i in range(len(chord_seq)):
-        if chord_seq[i] != None:
+        if chord_seq[i] is not None:
             chord = chord_seq[i]
         else:
             chord_seq[i] = chord
@@ -158,7 +157,7 @@ def chord_seq_to_chroma(chord_seq):
     N = len(chord_seq)
     matrix = np.zeros((N, 12))
     for i in range(N):
-        if chord_seq[i] != None:
+        if chord_seq[i] is not None:
             for note in chord_seq[i]._notes:
                 matrix[i, note.pitch.midi % 12] = 1
     return matrix
