@@ -17,5 +17,5 @@ config_file.close()
 
 # VAEモデル作成
 main_vae = bc.make_model(seq_length, input_dim, output_dim)
-main_vae.fit(x_all, y_all, epochs=50)
+main_vae.fit(x_all, y_all, epochs=500)
 main_vae.save(bc.BASE_DIR + "/mymodel.h5")

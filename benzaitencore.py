@@ -118,7 +118,8 @@ def add_rest_nodes(onehot_seq):
     return np.concatenate([onehot_seq, rest], axis=1)
 
 
-# 指定された仕様のcsvファイルを読み込んで # ChordSymbol列を返す
+# 指定された仕様のcsvファイルを読み込んで
+# ChordSymbol列を返す
 def read_chord_file(file):
     chord_seq = [None] * (MELODY_LENGTH * N_BEATS)
     with open(file) as f:
@@ -202,16 +203,21 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
     midi.tracks.append(track)
     init_tick = INTRO_BLANK_MEASURES * N_BEATS * MIDI_DIVISION
     prev_tick = 0
-    for i in range(len(notenums)):
-        if notenums[i] > 0:
-            curr_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
-            track.append(mido.Message('note_on', note=notenums[i] + transpose,
-                                      velocity=100, time=curr_tick - prev_tick))
-            prev_tick = curr_tick
-            curr_tick = int((i + durations[i]) * MIDI_DIVISION / BEAT_RESO) + init_tick
-            track.append(mido.Message('note_off', note=notenums[i] + transpose,
-                                      velocity=100, time=curr_tick - prev_tick))
-            prev_tick = curr_tick
+    for i, e in enumerate(notenums):
+        if e > 0:
+            curr_note = e + transpose
+
+            note_on_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
+            note_on_time = note_on_tick - prev_tick
+            note_on_msg = mido.Message('note_on', note=curr_note, velocity=100, time=note_on_time)
+            track.append(note_on_msg)
+
+            note_off_tick = int((i + durations[i]) * MIDI_DIVISION / BEAT_RESO) + init_tick
+            note_off_time = note_off_tick - note_on_tick
+            note_off_msg = mido.Message('note_off', note=curr_note, velocity=100, time=note_off_time)
+            track.append(note_off_msg)
+            prev_tick = note_off_tick
+
     midi.save(dst_filename)
 
 
@@ -246,7 +252,8 @@ def calc_xy(o, c):
     return x, y
 
 
-# メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列から # モデルの入力、出力用のデータを作成して、配列に逐次格納する
+# メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列から
+# モデルの入力、出力用のデータを作成して、配列に逐次格納する
 def divide_seq(onehot_seq, chroma_seq, x_all, y_all):
     for i in range(0, TOTAL_MEASURES, UNIT_MEASURES):
         o, c, = extract_seq(i, onehot_seq, chroma_seq)
