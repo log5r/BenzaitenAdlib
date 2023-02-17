@@ -37,6 +37,7 @@ for i in range(0, bc.MELODY_LENGTH, bc.UNIT_MEASURES):
 notenumlist = bc.calc_notenums_from_pianoroll(pianoroll)
 assert(len(notenumlist) == 128)
 
+# 補正
 for i, e in enumerate(notenumlist):
     safenotes = chord_prog[i // 4]
     target_class = e % 12
@@ -51,5 +52,6 @@ for i, e in enumerate(notenumlist):
         fixed_note = e - dist if isMinusWork else e + dist
         notenumlist[i] = fixed_note
 
+# ピアノロール表示
 bc.plot_pianoroll(pianoroll)
 bc.show_and_play_midi(notenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
