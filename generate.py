@@ -12,19 +12,19 @@ def note_correction_conditions(i):
         (i < 16),
         # 2
         (16 <= i < 20),
-        (20 <= i < 28 and i % 4 != 1),
+        (20 <= i < 28 and i % 2 == 0),
         (28 <= i < 32),
         # 3
-        (32 <= i < 48 and i % 8 != 1),
+        (32 <= i < 48 and i % 4 == 0),
         # 4
         (48 <= i < 52),
         (52 <= i < 60 and i % 2 != 1),
         (60 <= i < 64),
         # 5
-        (64 <= i < 80 and i % 4 != 1),
+        (64 <= i < 80 and i % 4 == 0),
         # 6
         (80 <= i < 82),
-        (82 <= i < 92 and i % 2 != 1),
+        (82 <= i < 92 and i % 3 != 1),
         (92 <= i < 96),
         # 7
         (96 <= i < 112 and i % 16 != 4),
@@ -69,7 +69,7 @@ def generate_files(model_idf, remove_suffix_prob):
 
     # 補正
     for i, e in enumerate(notenumlist):
-
+        through_count = 0
         area_chord = chord_prog[i // 4]
 
         if random.random() < remove_suffix_prob:
@@ -81,7 +81,10 @@ def generate_files(model_idf, remove_suffix_prob):
         fixed_note = e
         target_class = e % 12
 
-        if (e % 12) not in goal_chord.pitchClasses:
+        if e < 24:
+            next_value = 48 + random.choice(goal_chord.pitchClasses)
+            fixed_note = next_value
+        elif (e % 12) not in goal_chord.pitchClasses:
             if any(note_correction_conditions(i)):
                 clist = []
                 for k in goal_chord:
@@ -91,8 +94,16 @@ def generate_files(model_idf, remove_suffix_prob):
                 clist.sort(key=lambda z: z[0])
                 fixed_note = e + clist[0][1]
                 if i > 0 and fixednotenumlist[-1] == fixed_note:
-                    fixed_note = clist[1][1]
+                    fixed_note = e + clist[1][1]
+            elif (e % 12) in [1, 3, 6, 8, 10]:
+                through_count += 1
+                if through_count % 4 != 0:
+                    fixed_note = e + random.choice([1, -1])
+        fixed_note += random.choice([0, 0, 12])
         fixednotenumlist.append(fixed_note)
+
+    for i, e in enumerate(notenumlist):
+        print("%s: %s" % (i, e))
 
     # MIDIとWAVファイルを生成
     bf_path = bc.BASE_DIR + "/" + backing_file
@@ -102,8 +113,8 @@ def generate_files(model_idf, remove_suffix_prob):
 
 
 generate_files("C_major", 0)
-generate_files("A_minor", 0)
-generate_files("C_major", 1)
-generate_files("A_minor", 1)
-generate_files("C_major", 0.5)
-generate_files("A_minor", 0.5)
+# generate_files("A_minor", 0)
+# generate_files("C_major", 1)
+# generate_files("A_minor", 1)
+# generate_files("C_major", 0.5)
+# generate_files("A_minor", 0.5)
