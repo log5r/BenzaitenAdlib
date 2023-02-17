@@ -42,14 +42,18 @@ fixednotenumlist = []
 # 補正
 for i, e in enumerate(notenumlist):
     area_chord = chord_prog[i // 4]
-    fixed_chord_str = str(mu.remove_chord_suffix(area_chord.figure))
-    safenotes = harmony.ChordSymbol(fixed_chord_str)
+    # IF REMOVE_CHORD_SUFFIX
+    # fixed_chord_str = str(mu.remove_chord_suffix(area_chord.figure))
+    # goal_chord = harmony.ChordSymbol(fixed_chord_str)
+    # ELSE
+    goal_chord = area_chord
+    # END IF
     fixed_note = e
     target_class = e % 12
-    if (e % 12) not in safenotes.pitchClasses:
+    if i % 4 == 0 and (e % 12) not in goal_chord.pitchClasses:
         dist = 0
         dist_abs = 999
-        for k in safenotes:
+        for k in goal_chord:
             expected_class = k.pitch.midi % 12
             buf = expected_class - target_class
             if abs(buf) < dist_abs:
