@@ -51,13 +51,25 @@ for i, e in enumerate(notenumlist):
 
     if (e % 12) not in goal_chord.pitchClasses:
         conditions = [
-            (i < 20),
-            (20 <= i < 32 and i % 3 == 1),
-            (32 <= i < 52),
-            (52 <= i < 60 and i % 2 != 0),
-            (60 <= i < 82),
-            (82 <= i < 98 and i % 2 == 0),
-            (98 <= i < 112),
+            # 1
+            (i < 16),
+            # 2
+            (16 <= i <= 20),
+            (20 <= i < 32 and i % 2 != 1),
+            # 3
+            (32 <= i < 48 and i % 8 != 1),
+            # 4
+            (48 <= i < 52),
+            (52 <= i < 60 and i % 2 != 1),
+            (60 <= i < 64),
+            # 5
+            (64 <= i < 80 and i % 4 != 1),
+            # 6
+            (80 <= i < 82),
+            (82 <= i < 96 and i % 2 != 1),
+            # 7
+            (96 <= i < 112 and i % 16 != 4),
+            # 8
             (112 <= i)
         ]
         if any(conditions):
