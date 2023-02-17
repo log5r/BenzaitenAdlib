@@ -229,7 +229,7 @@ def plot_pianoroll(pianoroll):
 
 
 # ピアノロールを描画し、MIDIファイルを再生
-def show_and_play_midi(notes, transpose, src_filename, dst_filename):
+def generate_midi_and_wav(notes, transpose, src_filename, dst_filename):
     notenums, durations = calc_durations(notes)
     make_midi(notenums, durations, transpose, src_filename, dst_filename)
     sf_path = "soundfonts/FluidR3_GM.sf2"
