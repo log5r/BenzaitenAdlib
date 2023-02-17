@@ -84,6 +84,5 @@ for i, e in enumerate(notenumlist):
                 fixed_note = clist[1][1]
     fixednotenumlist.append(fixed_note)
 
-# ピアノロール表示
-bc.plot_pianoroll(pianoroll)
-bc.show_and_play_midi(fixednotenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
+# MIDIとWAVファイルを生成
+bc.generate_midi_and_wav(fixednotenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
