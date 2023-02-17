@@ -1,6 +1,8 @@
 import benzaitencore as bc
+import music_utils as mu
 import numpy as np
 import datetime
+import music21.harmony as harmony
 
 # タイムスタンプ
 timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
@@ -9,7 +11,6 @@ timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
 backing_file = "sample/sample_backing.mid"
 chord_file = "sample/sample_chord.csv"
 output_file = "output/%s_output.mid" % timestamp
-
 
 # config読み込み
 config_file = open('config.benzaitenconfig', 'r')
@@ -33,4 +34,32 @@ for i in range(0, bc.MELODY_LENGTH, bc.UNIT_MEASURES):
     index_from = i * (bc.N_BEATS * bc.BEAT_RESO)
     pianoroll[index_from: index_from + y_new[0].shape[0], :] = y_new[0]
 
-bc.show_and_play_midi(pianoroll, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
+notenumlist = bc.calc_notenums_from_pianoroll(pianoroll)
+fixednotenumlist = []
+
+# 補正
+for i, e in enumerate(notenumlist):
+    area_chord = chord_prog[i // 4]
+    # IF REMOVE_CHORD_SUFFIX
+    # fixed_chord_str = str(mu.remove_chord_suffix(area_chord.figure))
+    # goal_chord = harmony.ChordSymbol(fixed_chord_str)
+    # ELSE
+    goal_chord = area_chord
+    # END IF
+    fixed_note = e
+    target_class = e % 12
+    if (i % 2 == 0 or i > 80) and (e % 12) not in goal_chord.pitchClasses:
+        clist = []
+        for k in goal_chord:
+            expected_class = k.pitch.midi % 12
+            buf = expected_class - target_class
+            clist.append([abs(buf), buf])
+        clist.sort(key=lambda z: z[0])
+        fixed_note = e + clist[0][1]
+        if i > 0 and fixednotenumlist[-1] == fixed_note:
+            fixed_note = clist[1][1]
+    fixednotenumlist.append(fixed_note)
+
+# ピアノロール表示
+bc.plot_pianoroll(pianoroll)
+bc.show_and_play_midi(fixednotenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
