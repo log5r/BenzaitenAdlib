@@ -12,7 +12,6 @@ backing_file = "sample/sample_backing.mid"
 chord_file = "sample/sample_chord.csv"
 output_file = "output/%s_output.mid" % timestamp
 
-
 # config読み込み
 config_file = open('config.benzaitenconfig', 'r')
 configurations = config_file.readlines()
@@ -35,7 +34,6 @@ for i in range(0, bc.MELODY_LENGTH, bc.UNIT_MEASURES):
     index_from = i * (bc.N_BEATS * bc.BEAT_RESO)
     pianoroll[index_from: index_from + y_new[0].shape[0], :] = y_new[0]
 
-
 notenumlist = bc.calc_notenums_from_pianoroll(pianoroll)
 fixednotenumlist = []
 
@@ -50,16 +48,16 @@ for i, e in enumerate(notenumlist):
     # END IF
     fixed_note = e
     target_class = e % 12
-    if i % 4 == 0 and (e % 12) not in goal_chord.pitchClasses:
-        dist = 0
-        dist_abs = 999
+    if (i % 2 == 0 or i > 80) and (e % 12) not in goal_chord.pitchClasses:
+        clist = []
         for k in goal_chord:
             expected_class = k.pitch.midi % 12
             buf = expected_class - target_class
-            if abs(buf) < dist_abs:
-                dist_abs = abs(buf)
-                dist = buf
-        fixed_note = e + dist
+            clist.append([abs(buf), buf])
+        clist.sort(key=lambda z: z[0])
+        fixed_note = e + clist[0][1]
+        if i > 0 and fixednotenumlist[-1] == fixed_note:
+            fixed_note = clist[1][1]
     fixednotenumlist.append(fixed_note)
 
 # ピアノロール表示
