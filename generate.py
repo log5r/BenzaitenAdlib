@@ -48,16 +48,28 @@ for i, e in enumerate(notenumlist):
     # END IF
     fixed_note = e
     target_class = e % 12
-    if (i % 2 == 0 or i > 80) and (e % 12) not in goal_chord.pitchClasses:
-        clist = []
-        for k in goal_chord:
-            expected_class = k.pitch.midi % 12
-            buf = expected_class - target_class
-            clist.append([abs(buf), buf])
-        clist.sort(key=lambda z: z[0])
-        fixed_note = e + clist[0][1]
-        if i > 0 and fixednotenumlist[-1] == fixed_note:
-            fixed_note = clist[1][1]
+
+    if (e % 12) not in goal_chord.pitchClasses:
+        conditions = [
+            (i < 20),
+            (20 <= i < 32 and i % 3 == 1),
+            (32 <= i < 52),
+            (52 <= i < 60 and i % 2 != 0),
+            (60 <= i < 82),
+            (82 <= i < 98 and i % 2 == 0),
+            (98 <= i < 112),
+            (112 <= i)
+        ]
+        if any(conditions):
+            clist = []
+            for k in goal_chord:
+                expected_class = k.pitch.midi % 12
+                buf = expected_class - target_class
+                clist.append([abs(buf), buf])
+            clist.sort(key=lambda z: z[0])
+            fixed_note = e + clist[0][1]
+            if i > 0 and fixednotenumlist[-1] == fixed_note:
+                fixed_note = clist[1][1]
     fixednotenumlist.append(fixed_note)
 
 # ピアノロール表示
