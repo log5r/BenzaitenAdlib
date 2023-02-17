@@ -9,6 +9,7 @@ import glob
 import tensorflow as tf
 import tensorflow_probability as tfp
 import datetime
+import functools
 
 TOTAL_MEASURES = 240  # 学習用MusicXMLを読み込む際の小節数の上限
 UNIT_MEASURES = 4  # 1回の生成で扱う旋律の長さ
@@ -200,8 +201,8 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
     midi = mido.MidiFile(src_filename)
     MIDI_DIVISION = midi.ticks_per_beat
     init_tick = INTRO_BLANK_MEASURES * N_BEATS * MIDI_DIVISION
-    prev_tick = 0
-    midi.tracks[0].pop()
+    midi.tracks[1].pop()
+    prev_tick = functools.reduce(lambda x, y: x + y, map(lambda u: u.time, midi.tracks[1]))
     for i, e in enumerate(notenums):
         if e > 0:
             curr_note = e + transpose
@@ -209,12 +210,13 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
             note_on_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
             note_on_time = note_on_tick - prev_tick
             note_on_msg = mido.Message('note_on', note=curr_note, velocity=100, time=note_on_time)
-            midi.tracks[0].append(note_on_msg)
+            midi.tracks[1].append(note_on_msg)
 
             note_off_tick = int((i + durations[i]) * MIDI_DIVISION / BEAT_RESO) + init_tick
             note_off_time = note_off_tick - note_on_tick
             note_off_msg = mido.Message('note_off', note=curr_note, velocity=100, time=note_off_time)
-            midi.tracks[0].append(note_off_msg)
+            midi.tracks[1].append(note_off_msg)
+
             prev_tick = note_off_tick
 
     midi.save(dst_filename)
