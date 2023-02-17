@@ -1,6 +1,8 @@
 import benzaitencore as bc
+import music_utils as mu
 import numpy as np
 import datetime
+import music21.harmony as harmony
 
 # タイムスタンプ
 timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
@@ -35,23 +37,27 @@ for i in range(0, bc.MELODY_LENGTH, bc.UNIT_MEASURES):
 
 
 notenumlist = bc.calc_notenums_from_pianoroll(pianoroll)
-assert(len(notenumlist) == 128)
+fixednotenumlist = []
 
 # 補正
 for i, e in enumerate(notenumlist):
-    safenotes = chord_prog[i // 4]
+    area_chord = chord_prog[i // 4]
+    fixed_chord_str = str(mu.remove_chord_suffix(area_chord.figure))
+    safenotes = harmony.ChordSymbol(fixed_chord_str)
+    fixed_note = e
     target_class = e % 12
     if (e % 12) not in safenotes.pitchClasses:
-        dist = 999
+        dist = 0
+        dist_abs = 999
         for k in safenotes:
             expected_class = k.pitch.midi % 12
-            buf = abs(target_class - expected_class)
-            if buf < dist:
+            buf = expected_class - target_class
+            if abs(buf) < dist_abs:
+                dist_abs = abs(buf)
                 dist = buf
-        isMinusWork = abs(50 - (e - dist)) < abs(50 - (e + dist))
-        fixed_note = e - dist if isMinusWork else e + dist
-        notenumlist[i] = fixed_note
+        fixed_note = e + dist
+    fixednotenumlist.append(fixed_note)
 
 # ピアノロール表示
 bc.plot_pianoroll(pianoroll)
-bc.show_and_play_midi(notenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
+bc.show_and_play_midi(fixednotenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
