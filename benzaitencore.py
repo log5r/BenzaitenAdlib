@@ -19,8 +19,6 @@ NOTENUM_FROM = 36  # 扱う音域の下限(この値を含む)
 NOTENUM_THRU = 84  # 扱う音域の上限(この値を含まない)
 INTRO_BLANK_MEASURES = 4  # ブランクおよび伴奏の小節数の合計
 MELODY_LENGTH = 8  # 生成するメロディの長さ(小節数)
-KEY_ROOT = "C"  # 生成するメロディの調のルート("C" or "A")
-KEY_MODE = "major"  # 生成するメロディの調のモード("major" or "minor")
 
 # ディレクトリ定義
 BASE_DIR = "./"
@@ -228,14 +226,14 @@ def plot_pianoroll(pianoroll):
     plt.show()
 
 
-# ピアノロールを描画し、MIDIファイルを再生
-def generate_midi_and_wav(notes, transpose, src_filename, dst_filename):
+# MIDIとWAVを生成
+def generate_midi_and_wav(notes, transpose, src_filename, dst_filename, model_idf):
     notenums, durations = calc_durations(notes)
     make_midi(notenums, durations, transpose, src_filename, dst_filename)
     sf_path = "soundfonts/FluidR3_GM.sf2"
     fs = midi2audio.FluidSynth(sound_font=sf_path)
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
-    generated_filename = "%s_output.wav" % timestamp
+    generated_filename = "%s_%s_output.wav" % (timestamp, model_idf)
     fs.midi_to_audio(dst_filename, generated_filename)
     ipd.display(ipd.Audio(generated_filename))
 
@@ -268,13 +266,13 @@ def divide_seq(onehot_seq, chroma_seq, x_all, y_all):
 
 
 # ファイルの読み込み
-def read_mus_xml_files(x, y):
+def read_mus_xml_files(x, y, key_root, key_mode):
     for f in glob.glob(MUS_DIR + "/*.xml"):
         print(f)
         score = music21.converter.parse(f)
         key = score.analyze("key")
-        if key.mode == KEY_MODE:
-            inter = music21.interval.Interval(key.tonic, music21.pitch.Pitch(KEY_ROOT))
+        if key.mode == key_mode:
+            inter = music21.interval.Interval(key.tonic, music21.pitch.Pitch(key_root))
             score = score.transpose(inter)
             note_seq, chord_seq = make_note_and_chord_seq_from_musicxml(score)
             main_onehot_seq = add_rest_nodes(note_seq_to_onehot(note_seq))
