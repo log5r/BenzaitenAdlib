@@ -293,3 +293,5 @@ soundfonts/
 *.benzaitenconfig
 *.h5
 *.wav
+
+sample*.zip
