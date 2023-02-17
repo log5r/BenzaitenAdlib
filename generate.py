@@ -68,8 +68,10 @@ def generate_files(model_idf, remove_suffix_prob):
     fixednotenumlist = []
 
     # 補正
+    same_note_chain = 0
+    through_count = 0
+    bottom_count = 0
     for i, e in enumerate(notenumlist):
-        through_count = 0
         area_chord = chord_prog[i // 4]
 
         if random.random() < remove_suffix_prob:
@@ -82,8 +84,9 @@ def generate_files(model_idf, remove_suffix_prob):
         target_class = e % 12
 
         if e < 24:
-            next_value = 48 + random.choice(goal_chord.pitchClasses)
-            fixed_note = next_value
+            next_n_idx = bottom_count % len(goal_chord.pitchClasses)
+            fixed_note = 48 + goal_chord.pitchClasses[next_n_idx]
+            bottom_count += 1
         elif (e % 12) not in goal_chord.pitchClasses:
             if any(note_correction_conditions(i)):
                 clist = []
@@ -97,9 +100,14 @@ def generate_files(model_idf, remove_suffix_prob):
                     fixed_note = e + clist[1][1]
             elif (e % 12) in [1, 3, 6, 8, 10]:
                 through_count += 1
-                if through_count % 4 != 0:
+                if through_count % 7 != 0:
                     fixed_note = e + random.choice([1, -1])
-        fixed_note += random.choice([0, 0, 12])
+        # fixed_note += random.choice([0, 0, 12])
+        if len(fixednotenumlist) > 0 and fixednotenumlist[-1] == fixed_note:
+            same_note_chain += 1
+            if same_note_chain > random.choice([1, 2, 3]):
+                fixed_note = list(filter(lambda x: x != fixed_note, goal_chord.pitchClasses))[0]
+                same_note_chain = 0
         fixednotenumlist.append(fixed_note)
 
     for i, e in enumerate(notenumlist):
