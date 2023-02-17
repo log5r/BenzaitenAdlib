@@ -221,12 +221,15 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
     midi.save(dst_filename)
 
 
-# ピアノロールを描画し、MIDIファイルを再生
-def show_and_play_midi(pianoroll, transpose, src_filename, dst_filename):
+# ピアノロールを描画
+def plot_pianoroll(pianoroll):
     plt.matshow(np.transpose(pianoroll))
     plt.show()
-    notenums = calc_notenums_from_pianoroll(pianoroll)
-    notenums, durations = calc_durations(notenums)
+
+
+# ピアノロールを描画し、MIDIファイルを再生
+def show_and_play_midi(notes, transpose, src_filename, dst_filename):
+    notenums, durations = calc_durations(notes)
     make_midi(notenums, durations, transpose, src_filename, dst_filename)
     sf_path = "soundfonts/FluidR3_GM.sf2"
     fs = midi2audio.FluidSynth(sound_font=sf_path)

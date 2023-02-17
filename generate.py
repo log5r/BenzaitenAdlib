@@ -33,4 +33,23 @@ for i in range(0, bc.MELODY_LENGTH, bc.UNIT_MEASURES):
     index_from = i * (bc.N_BEATS * bc.BEAT_RESO)
     pianoroll[index_from: index_from + y_new[0].shape[0], :] = y_new[0]
 
-bc.show_and_play_midi(pianoroll, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
+
+notenumlist = bc.calc_notenums_from_pianoroll(pianoroll)
+assert(len(notenumlist) == 128)
+
+for i, e in enumerate(notenumlist):
+    safenotes = chord_prog[i // 4]
+    target_class = e % 12
+    if (e % 12) not in safenotes.pitchClasses:
+        dist = 999
+        for k in safenotes:
+            expected_class = k.pitch.midi % 12
+            buf = abs(target_class - expected_class)
+            if buf < dist:
+                dist = buf
+        isMinusWork = abs(50 - (e - dist)) < abs(50 - (e + dist))
+        fixed_note = e - dist if isMinusWork else e + dist
+        notenumlist[i] = fixed_note
+
+bc.plot_pianoroll(pianoroll)
+bc.show_and_play_midi(notenumlist, 12, bc.BASE_DIR + "/" + backing_file, bc.BASE_DIR + output_file)
