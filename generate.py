@@ -33,7 +33,7 @@ def note_correction_conditions(i):
     ]
 
 
-def generate_files(model_idf, remove_suffix_prob):
+def generate_files(model_idf, remove_suffix_prob, strict_mode=False):
     # タイムスタンプ
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
 
@@ -43,6 +43,8 @@ def generate_files(model_idf, remove_suffix_prob):
     output_file = "output/%s_%s_output.mid" % (timestamp, model_idf)
 
     # config読み込み
+    model_idf = model_idf.replace("_ST", "")
+    model_idf = model_idf.replace("_O", "")
     config_file = open("%s.benzaitenconfig" % model_idf, 'r')
     configurations = config_file.readlines()
     seq_length = int(configurations[0])
@@ -116,13 +118,22 @@ def generate_files(model_idf, remove_suffix_prob):
     # MIDIとWAVファイルを生成
     bf_path = bc.BASE_DIR + "/" + backing_file
     out_path = bc.BASE_DIR + output_file
-    suffix = "%s_r%s" % (model_idf, str(remove_suffix_prob))
+    suffix = "%s_r%s_%s" % (model_idf, str(remove_suffix_prob), "ST" if strict_mode else "O")
     bc.generate_midi_and_wav(fixednotenumlist, 12, bf_path, out_path, suffix)
 
 
-generate_files("C_major", 0)
-# generate_files("A_minor", 0)
-# generate_files("C_major", 1)
-# generate_files("A_minor", 1)
-# generate_files("C_major", 0.5)
-# generate_files("A_minor", 0.5)
+# generate_files("C_major_O", 0)
+# generate_files("C_major_O", 1)
+# generate_files("C_major_O", 0.5)
+#
+# generate_files("A_minor_O", 0)
+# generate_files("A_minor_O", 1)
+# generate_files("A_minor_O", 0.5)
+
+generate_files("C_major_ST", 0, True)
+# generate_files("C_major_ST", 1, True)
+# generate_files("C_major_ST", 0.5, True)
+
+# generate_files("A_minor_ST", 0, True)
+# generate_files("A_minor_ST", 1, True)
+# generate_files("A_minor_ST", 0.5, True)
