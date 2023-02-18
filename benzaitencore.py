@@ -203,7 +203,7 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
     prev_tick = functools.reduce(lambda x, y: x + y, map(lambda u: u.time, midi.tracks[1]))
     for i, e in enumerate(notenums):
         if e > 0:
-            curr_note = e + transpose
+            curr_note = min(e + transpose, 127)
 
             note_on_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
             note_on_time = note_on_tick - prev_tick
@@ -235,7 +235,6 @@ def generate_midi_and_wav(notes, transpose, src_filename, dst_filename, model_id
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
     generated_filename = "%s_%s_output.wav" % (timestamp, model_idf)
     fs.midi_to_audio(dst_filename, generated_filename)
-    ipd.display(ipd.Audio(generated_filename))
 
 
 # メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列に対して、
