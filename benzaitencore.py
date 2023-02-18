@@ -203,7 +203,7 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
     prev_tick = functools.reduce(lambda x, y: x + y, map(lambda u: u.time, midi.tracks[1]))
     for i, e in enumerate(notenums):
         if e > 0:
-            curr_note = e + transpose
+            curr_note = min(e + transpose, 127)
 
             note_on_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
             note_on_time = note_on_tick - prev_tick
