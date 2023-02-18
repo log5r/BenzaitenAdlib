@@ -235,7 +235,6 @@ def generate_midi_and_wav(notes, transpose, src_filename, dst_filename, model_id
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
     generated_filename = "%s_%s_output.wav" % (timestamp, model_idf)
     fs.midi_to_audio(dst_filename, generated_filename)
-    ipd.display(ipd.Audio(generated_filename))
 
 
 # メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列に対して、
