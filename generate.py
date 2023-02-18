@@ -77,19 +77,29 @@ def generate_files(model_idf, remove_suffix_prob, strict_mode=False):
         area_chord = chord_prog[i // 4]
 
         if random.random() < remove_suffix_prob:
-            fixed_chord_str = str(mu.remove_chord_suffix(area_chord.figure))
-            goal_chord = harmony.ChordSymbol(fixed_chord_str)
+            goal_chord = harmony.ChordSymbol(str(mu.remove_chord_suffix(area_chord.figure)))
         else:
             goal_chord = area_chord
 
         fixed_note = e
-        target_class = e % 12
+        target_class = fixed_note % 12
 
-        if e < 24:
+        if i == 0:
+            if random.random() < 0.6:
+                fixed_note = 60 + goal_chord.pitchClasses[-1]
+            else:
+                fixed_note = 60 + random.choice(goal_chord.pitchClasses)
+        elif fixed_note < 24:
+            # 低すぎる音が出たら適宜取り繕う
             next_n_idx = bottom_count % len(goal_chord.pitchClasses)
-            fixed_note = 48 + goal_chord.pitchClasses[next_n_idx]
-            bottom_count += 1
-        elif (e % 12) not in goal_chord.pitchClasses:
+            if len(fixednotenumlist) > 0:
+                if random.random() < 0.5:
+                    fixed_note = fixednotenumlist[-1]
+                else:
+                    fixed_note = (fixednotenumlist[-1] // 12) * 12 + goal_chord.pitchClasses[next_n_idx]
+                    bottom_count += 1
+        elif (fixed_note % 12) not in goal_chord.pitchClasses:
+            # コード構成音にない音について、特定条件のもとで補正する
             if any(note_correction_conditions(i)):
                 clist = []
                 for k in goal_chord:
@@ -97,22 +107,30 @@ def generate_files(model_idf, remove_suffix_prob, strict_mode=False):
                     buf = expected_class - target_class
                     clist.append([abs(buf), buf])
                 clist.sort(key=lambda z: z[0])
-                fixed_note = e + clist[0][1]
-                if i > 0 and fixednotenumlist[-1] == fixed_note:
-                    fixed_note = e + clist[1][1]
-            elif (e % 12) in [1, 3, 6, 8, 10]:
+                fixed_note = fixed_note + clist[0][1]
+
+        # C or A で黒鍵は登場しないはずなので、補正する。ただし、サフィックス付きコードはたまに許す
+        if i != 0 and (fixed_note % 12) in [1, 3, 6, 8, 10]:
+            if strict_mode or (through_count % 5 != 1 and not mu.chord_has_suffix(goal_chord.figure)):
                 through_count += 1
-                if through_count % 7 != 0:
-                    fixed_note = e + random.choice([1, -1])
-        # fixed_note += random.choice([0, 0, 12])
-        if len(fixednotenumlist) > 0 and fixednotenumlist[-1] == fixed_note:
+                fixed_note += random.choice([1, -1])
+
+        # 同一ノートが連続したときの処理。２回まではゆるすが、３回以降は変える
+        if i != 0 and len(fixednotenumlist) > 0 and fixednotenumlist[-1] == fixed_note:
             same_note_chain += 1
             if same_note_chain > random.choice([1, 2, 3]):
-                fixed_note = list(filter(lambda x: x != fixed_note, goal_chord.pitchClasses))[0]
+                delta = list(filter(lambda nt: nt != fixed_note, goal_chord.pitchClasses))[0]
+                fixed_note = (fixed_note // 12) * 12 + delta
                 same_note_chain = 0
+
+        # サフィックス除去後のコード構成音と半音をなすような音が出てきたら、プラマイ1する
+        safe_chord_list = harmony.ChordSymbol(str(mu.remove_chord_suffix(area_chord.figure)))
+        if i != 0 and any(map(lambda en: abs(fixed_note - en) == 1, safe_chord_list.pitchClasses)):
+            fixed_note += random.choice([1, -1])
+
         fixednotenumlist.append(fixed_note)
 
-    for i, e in enumerate(notenumlist):
+    for i, e in enumerate(fixednotenumlist):
         print("%s: %s" % (i, e))
 
     # MIDIとWAVファイルを生成
