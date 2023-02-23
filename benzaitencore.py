@@ -119,13 +119,13 @@ def add_rest_nodes(onehot_seq):
 
 # 指定された仕様のcsvファイルを読み込んで
 # ChordSymbol列を返す
-def read_chord_file(file):
-    chord_seq = [None] * (MELODY_LENGTH * N_BEATS)
+def read_chord_file(file, appending=0):
+    chord_seq = [None] * ((MELODY_LENGTH + appending) * N_BEATS)
     with open(file) as f:
         reader = csv.reader(f)
         for row in reader:
             m = int(row[0])  # 小節番号(0始まり)
-            if m < MELODY_LENGTH:
+            if m < MELODY_LENGTH + appending:
                 b = int(row[1])  # 拍番号(0始まり、今回は0または2)
                 smbl = music21.harmony.ChordSymbol(root=row[2], kind=row[3], bass=row[4])
                 assign_idx = m * 4 + b
