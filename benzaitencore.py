@@ -207,12 +207,12 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
 
             note_on_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
             note_on_time = note_on_tick - prev_tick
-            note_on_msg = mido.Message('note_on', note=curr_note, velocity=100, time=note_on_time)
+            note_on_msg = mido.Message('note_on', note=curr_note, velocity=127, time=note_on_time)
             midi.tracks[1].append(note_on_msg)
 
             note_off_tick = int((i + durations[i]) * MIDI_DIVISION / BEAT_RESO) + init_tick
             note_off_time = note_off_tick - note_on_tick
-            note_off_msg = mido.Message('note_off', note=curr_note, velocity=100, time=note_off_time)
+            note_off_msg = mido.Message('note_off', note=curr_note, velocity=127, time=note_off_time)
             midi.tracks[1].append(note_off_msg)
 
             prev_tick = note_off_tick
