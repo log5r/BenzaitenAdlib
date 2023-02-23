@@ -27,7 +27,7 @@ def chord_has_suffix(chord_string):
 
 # Note補正を行う条件の定義
 # 設定ファイルに切り出すべきとは思うけどシンプルに面倒...
-def note_correction_conditions(i):
+def note_canonicalization_conditions(i):
     return [
         # 1
         (i < 16),
@@ -36,7 +36,7 @@ def note_correction_conditions(i):
         (20 <= i < 28 and i % 3 == 0),
         (28 <= i < 32),
         # 3
-        (32 <= i < 48 and i % 4 == 0),
+        (32 <= i < 48 and i % 4 == 2 or i % 16 == 0),
         # 4
         (48 <= i < 52),
         (52 <= i < 60 and i % 2 == 0),
@@ -49,6 +49,29 @@ def note_correction_conditions(i):
         (92 <= i < 96),
         # 7
         (96 <= i < 112 and i % 16 != 4),
+        # 8
+        (112 <= i)
+    ]
+
+
+def note_chain_breaking_condition(i):
+    return [
+        # 1
+        (9 <= i < 16),
+        # 2
+        (16 <= i < 24),
+        (28 <= i < 32),
+        # 3
+        # -- NONE --
+        # 4
+        # -- NONE --
+        # 5
+        (68 <= i < 80),
+        # 6
+        (80 <= i < 96),
+        # 7
+        (96 <= i < 100),
+        (108 <= i < 112),
         # 8
         (112 <= i)
     ]
@@ -87,7 +110,7 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
                     bottom_count += 1
         elif (fixed_note % 12) not in goal_chord.pitchClasses:
             # コード構成音にない音について、特定条件のもとで補正する
-            if any(note_correction_conditions(i)):
+            if any(note_canonicalization_conditions(i)):
                 clist = []
                 for k in goal_chord:
                     expected_class = k.pitch.midi % 12
@@ -102,29 +125,25 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
                 through_count += 1
                 fixed_note += random.choice([1, -1])
 
-        # 同一ノートが連続したときの処理。２回まではゆるすが、３回以降は変える
+        # 同一ノートが連続したときの処理
         if i != 0 and len(fixed_note_num_list) > 0 and fixed_note_num_list[-1] == fixed_note:
             same_note_chain += 1
-            if same_note_chain > random.choice([1, 2, 3]):
-                delta = list(filter(lambda nt: nt != fixed_note, goal_chord.pitchClasses))[0]
+            if any(note_chain_breaking_condition(i)):
+                err_note_class = [fixed_note_num_list[-1] % 12]
+                if same_note_chain % 4 != 1 and len(fixed_note_num_list) > 1:
+                    err_note_class += [fixed_note_num_list[-2] % 12]
+                    if len(fixed_note_num_list) > 2 and len(goal_chord.pitchClasses) > 3:
+                        err_note_class += [fixed_note_num_list[-3] % 12]
+                delta = random.choice(list(filter(lambda nt: nt not in err_note_class, goal_chord.pitchClasses)))
                 fixed_note = (fixed_note // 12) * 12 + delta
-                same_note_chain = 0
-
-        # サフィックス除去後のコード構成音と半音をなすような音が出てきたら、プラマイ1する
-        safe_chord_list = harmony.ChordSymbol(str(remove_chord_suffix(area_chord.figure)))
-        if i != 0 and any(map(lambda en: abs(fixed_note - en) == 1, safe_chord_list.pitchClasses)):
-            fixed_note += random.choice([1, -1])
 
         fixed_note_num_list.append(fixed_note)
 
-    # 最後の音（2部音符＋8部音符だけ持続）
-    lnmp = list(
-        map(lambda ln: [abs(ln - fixed_note_num_list[-1]), ln - fixed_note_num_list[-1]], [48, 52, 60, 64, 72, 76]))
-    lnmp.sort(key=lambda u: u[0])
-    fixed_note_num_list += [fixed_note_num_list[-1] + lnmp[0][1]] * 10
+    # 最後の小節
+    end_note_scale = (fixed_note_num_list[-1] // 12) * 12
+    for cls in chord_prog[-1].pitchClasses:
+        fixed_note_num_list.append(end_note_scale + cls)
+    fixed_note_num_list.append(end_note_scale + 12 + chord_prog[-1].pitchClasses[0])
+    fixed_note_num_list += [fixed_note_num_list[-1]] * 8
 
     return fixed_note_num_list
-
-
-def correct_note_using_accomplishment(note_num_list, back_midi: music21.midi):
-    fixed_note_num_list = []
