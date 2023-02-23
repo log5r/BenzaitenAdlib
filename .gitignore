@@ -285,6 +285,9 @@ poetry.toml
 
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm
 
+# Mac
+.DS_Store
+
 # Benzaiten
 omnibook/
 sample/
@@ -295,3 +298,4 @@ soundfonts/
 *.wav
 
 sample*.zip
+output_*.zip
