@@ -190,8 +190,8 @@ def calc_durations(notenums):
                 duration[i] += 1
             else:
                 break
-        k += 1
-    return notenums, duration
+            k += 1
+    return duration
 
 
 # MIDIファイルを生成
@@ -228,8 +228,8 @@ def plot_pianoroll(pianoroll):
 
 # MIDIとWAVを生成
 def generate_midi_and_wav(notes, transpose, src_filename, dst_filename, model_idf):
-    notenums, durations = calc_durations(notes)
-    make_midi(notenums, durations, transpose, src_filename, dst_filename)
+    durations = calc_durations(notes)
+    make_midi(notes, durations, transpose, src_filename, dst_filename)
     sf_path = "soundfonts/FluidR3_GM.sf2"
     fs = midi2audio.FluidSynth(sound_font=sf_path)
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')

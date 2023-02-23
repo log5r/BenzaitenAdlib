@@ -130,6 +130,11 @@ def generate_files(model_idf, remove_suffix_prob, strict_mode=False):
 
         fixednotenumlist.append(fixed_note)
 
+    # 最後の音（2部音符＋8部音符だけ持続）
+    lnmp = list(map(lambda ln: [abs(ln - fixednotenumlist[-1]), ln - fixednotenumlist[-1]], [48, 52, 60, 64, 72, 76]))
+    lnmp.sort(key=lambda u: u[0])
+    fixednotenumlist += [fixednotenumlist[-1] + lnmp[0][1]] * 10
+
     for i, e in enumerate(fixednotenumlist):
         print("%s: %s" % (i, e))
 
