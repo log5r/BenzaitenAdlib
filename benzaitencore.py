@@ -245,17 +245,6 @@ def generate_wav_file(model_idf, dst_filename):
     fs.midi_to_audio(dst_filename, generated_filename)
 
 
-# MIDIとWAVを生成
-def generate_midi_and_wav(notes, durations, transpose, src_filename, dst_filename, model_idf):
-    res_midi = make_midi(notes, durations, transpose, src_filename)
-    res_midi.save(dst_filename)
-    sf_path = "soundfonts/FluidR3_GM.sf2"
-    fs = midi2audio.FluidSynth(sound_font=sf_path)
-    timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
-    generated_filename = "%s_%s_output.wav" % (timestamp, model_idf)
-    fs.midi_to_audio(dst_filename, generated_filename)
-
-
 # メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列に対して、
 # UNIT_MEASURES小節分だけ切り出したものを返す
 def extract_seq(i, onehot_seq, chroma_seq):
