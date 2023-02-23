@@ -179,29 +179,39 @@ def calc_notenums_from_pianoroll(pianoroll):
 
 
 # 連続するノートナンバーを統合して (notenums, durations) に変換
-def calc_durations(notenums):
-    N = len(notenums)
-    duration = [1] * N
-    for i in range(N):
+def calc_durations(target_note_num_list):
+    note_num_list = target_note_num_list
+    note_nums_length = len(note_num_list)
+    duration = [1] * note_nums_length
+    for i in range(note_nums_length):
         k = 1
-        while i + k < N:
-            if notenums[i] > 0 and notenums[i] == notenums[i + k]:
-                notenums[i + k] = 0
+        while i + k < note_nums_length:
+            merge_condition = [
+                note_num_list[i] == note_num_list[i + k],
+                note_num_list[i + k] == 0
+            ]
+            if note_num_list[i] > 0 and any(merge_condition):
+                note_num_list[i + k] = 0
                 duration[i] += 1
             else:
                 break
             k += 1
-    return duration
+    return duration, note_num_list
+
+
+# MIDIファイルを読み込み
+def read_midi_file(src_filename):
+    return mido.MidiFile(src_filename)
 
 
 # MIDIファイルを生成
-def make_midi(notenums, durations, transpose, src_filename, dst_filename):
-    midi = mido.MidiFile(src_filename)
+def make_midi(note_num_list, durations, transpose, backing_midi):
+    midi = backing_midi
     MIDI_DIVISION = midi.ticks_per_beat
     init_tick = INTRO_BLANK_MEASURES * N_BEATS * MIDI_DIVISION
     midi.tracks[1].pop()
     prev_tick = functools.reduce(lambda x, y: x + y, map(lambda u: u.time, midi.tracks[1]))
-    for i, e in enumerate(notenums):
+    for i, e in enumerate(note_num_list):
         if e > 0:
             curr_note = min(e + transpose, 127)
 
@@ -217,7 +227,7 @@ def make_midi(notenums, durations, transpose, src_filename, dst_filename):
 
             prev_tick = note_off_tick
 
-    midi.save(dst_filename)
+    return midi
 
 
 # ピアノロールを描画
@@ -226,10 +236,19 @@ def plot_pianoroll(pianoroll):
     plt.show()
 
 
+# WAVを生成
+def generate_wav_file(model_idf, dst_filename):
+    sf_path = "soundfonts/FluidR3_GM.sf2"
+    fs = midi2audio.FluidSynth(sound_font=sf_path)
+    timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
+    generated_filename = "%s_%s_output.wav" % (timestamp, model_idf)
+    fs.midi_to_audio(dst_filename, generated_filename)
+
+
 # MIDIとWAVを生成
-def generate_midi_and_wav(notes, transpose, src_filename, dst_filename, model_idf):
-    durations = calc_durations(notes)
-    make_midi(notes, durations, transpose, src_filename, dst_filename)
+def generate_midi_and_wav(notes, durations, transpose, src_filename, dst_filename, model_idf):
+    res_midi = make_midi(notes, durations, transpose, src_filename)
+    res_midi.save(dst_filename)
     sf_path = "soundfonts/FluidR3_GM.sf2"
     fs = midi2audio.FluidSynth(sound_font=sf_path)
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
