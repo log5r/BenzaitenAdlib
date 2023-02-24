@@ -213,7 +213,7 @@ def arrange_using_midi(target_midi: music21.midi):
                 res_main_tml.append(note_on_msg)
                 # -- bend --
                 bend_curve = concave_increasing_bend_curve()
-                if note_off_t >= 720:
+                if note_off_t >= 359:
                     bend_curve = convex_increasing_bend_curve()
                 for c in bend_curve:
                     bend_msg_on = mido.Message('pitchwheel', channel=0, pitch=c, time=12)
