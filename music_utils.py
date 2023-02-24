@@ -1,6 +1,7 @@
 import random
 import music21.harmony as harmony
 import music21.midi
+import mido
 
 
 # コードのサフィックスを除外
@@ -73,7 +74,8 @@ def note_chain_breaking_condition(i):
         (96 <= i < 100),
         (108 <= i < 112),
         # 8
-        (112 <= i)
+        (112 <= i < 116),
+        (120 <= i < 128)
     ]
 
 
@@ -157,8 +159,12 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
                     fixed_note = (fixed_note // 12) * 12 + delta
 
         # 高すぎる音は結構耳につくので引いておく
-        if fixed_note > 96:
+        if fixed_note > 80:
             fixed_note -= 12
+        # 低すぎるのもおかしい...
+        if fixed_note < 58:
+            fixed_note += 12
+
         res_note_list.append(fixed_note)
 
     # 最後の小節
@@ -170,4 +176,63 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
 
     return res_note_list
 
-    return fixed_note_num_list
+
+def convex_increasing_bend_curve():
+    curve = [2, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+    return list(map(lambda x: x - 4097, curve))
+
+
+def concave_increasing_bend_curve():
+    curve = [2, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
+    return reversed(list(map(lambda x: 0 - x, curve)))
+
+
+def linear_increasing_bend_curve():
+    curve = [400, 800, 1200, 1600, 2000, 2400, 2800, 3200, 3600, 4000]
+    return reversed(list(map(lambda x: 0 - x, curve)))
+
+
+def arrange_using_midi(target_midi: music21.midi):
+    res_midi = target_midi
+    res_main_tml = []
+
+    note_on_t = 0
+    note_off_t = 0
+    note_value = 0
+
+    bend_chk_counter = 9999
+    for msg in target_midi.tracks[1]:
+        if msg.type == 'note_on':
+            note_on_t = msg.time
+            note_value = msg.note
+        elif msg.type == 'note_off':
+            note_off_t = msg.time
+            bend_chk_counter += note_off_t
+            if note_off_t >= 240 and bend_chk_counter > 1919:
+                note_on_msg = mido.Message('note_on', note=note_value, velocity=127, time=note_on_t)
+                res_main_tml.append(note_on_msg)
+                # -- bend --
+                bend_curve = concave_increasing_bend_curve()
+                if note_off_t >= 720:
+                    bend_curve = convex_increasing_bend_curve()
+                for c in bend_curve:
+                    bend_msg_on = mido.Message('pitchwheel', channel=0, pitch=c, time=12)
+                    res_main_tml.append(bend_msg_on)
+                bend_reset_msg = mido.Message('pitchwheel', channel=0, pitch=0, time=0)
+                res_main_tml.append(bend_reset_msg)
+
+                note_off_msg = mido.Message('note_off', note=note_value, velocity=127, time=note_off_t - 120)
+                res_main_tml.append(note_off_msg)
+
+                bend_chk_counter = 0
+            else:
+                note_on_msg = mido.Message('note_on', note=note_value, velocity=127, time=note_on_t)
+                res_main_tml.append(note_on_msg)
+                note_off_msg = mido.Message('note_off', note=note_value, velocity=127, time=note_off_t)
+                res_main_tml.append(note_off_msg)
+
+        else:
+            res_main_tml.append(msg)
+
+    res_midi.tracks[1] = res_main_tml
+    return res_midi
