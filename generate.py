@@ -68,14 +68,15 @@ def generate_adlib_files(model_idf, remove_suffix_prob, strict_mode=False):
     res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi)
 
     # MIDIファイル補正
-    for i, tr in enumerate(res_midi.tracks):
-        print(i, tr)
+    fixed_midi = mu.arrange_using_midi(res_midi)
     # TBD
+    for i, tr in enumerate(fixed_midi.tracks[1]):
+        print(i, tr)
 
     # MIDIファイルのセーブ
     output_file = "output/%s_output_%s.mid" % (timestamp, suffix)
     midi_out_path = bc.BASE_DIR + output_file
-    res_midi.save(midi_out_path)
+    fixed_midi.save(midi_out_path)
 
     # MWAVファイルを生成
     bc.generate_wav_file(suffix, midi_out_path)
@@ -83,21 +84,21 @@ def generate_adlib_files(model_idf, remove_suffix_prob, strict_mode=False):
 
 @print_proc_time
 def generate_file_set():
-    generate_adlib_files("C_major_O", 0)
-    generate_adlib_files("C_major_O", 1)
-    generate_adlib_files("C_major_O", 0.5)
+    # generate_adlib_files("C_major_O", 0)
+    # generate_adlib_files("C_major_O", 1)
+    # generate_adlib_files("C_major_O", 0.5)
     #
-    generate_adlib_files("A_minor_O", 0)
-    generate_adlib_files("A_minor_O", 1)
-    generate_adlib_files("A_minor_O", 0.5)
-
+    # generate_adlib_files("A_minor_O", 0)
+    # generate_adlib_files("A_minor_O", 1)
+    # generate_adlib_files("A_minor_O", 0.5)
+    #
     generate_adlib_files("C_major_ST", 0, True)
-    generate_adlib_files("C_major_ST", 1, True)
-    generate_adlib_files("C_major_ST", 0.5, True)
-
-    generate_adlib_files("A_minor_ST", 0, True)
-    generate_adlib_files("A_minor_ST", 1, True)
-    generate_adlib_files("A_minor_ST", 0.5, True)
+    # generate_adlib_files("C_major_ST", 1, True)
+    # generate_adlib_files("C_major_ST", 0.5, True)
+    #
+    # generate_adlib_files("A_minor_ST", 0, True)
+    # generate_adlib_files("A_minor_ST", 1, True)
+    # generate_adlib_files("A_minor_ST", 0.5, True)
 
 
 generate_file_set()
