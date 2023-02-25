@@ -13,6 +13,7 @@ def print_proc_time(f):
         elapsed_time = end_time - start_time
         print("FUNCTION: %s (%s sec)" % (f.__name__, elapsed_time))
         return return_val
+
     return print_proc_time_func
 
 
@@ -84,21 +85,21 @@ def generate_adlib_files(model_idf, remove_suffix_prob, strict_mode=False):
 
 @print_proc_time
 def generate_file_set():
-    # generate_adlib_files("C_major_O", 0)
-    # generate_adlib_files("C_major_O", 1)
-    # generate_adlib_files("C_major_O", 0.5)
-    #
-    # generate_adlib_files("A_minor_O", 0)
-    # generate_adlib_files("A_minor_O", 1)
-    # generate_adlib_files("A_minor_O", 0.5)
-    #
+    generate_adlib_files("C_major_O", 0)
+    generate_adlib_files("C_major_O", 1)
+    generate_adlib_files("C_major_O", 0.5)
+
+    generate_adlib_files("A_minor_O", 0)
+    generate_adlib_files("A_minor_O", 1)
+    generate_adlib_files("A_minor_O", 0.5)
+
     generate_adlib_files("C_major_ST", 0, True)
-    # generate_adlib_files("C_major_ST", 1, True)
-    # generate_adlib_files("C_major_ST", 0.5, True)
-    #
-    # generate_adlib_files("A_minor_ST", 0, True)
-    # generate_adlib_files("A_minor_ST", 1, True)
-    # generate_adlib_files("A_minor_ST", 0.5, True)
+    generate_adlib_files("C_major_ST", 1, True)
+    generate_adlib_files("C_major_ST", 0.5, True)
+
+    generate_adlib_files("A_minor_ST", 0, True)
+    generate_adlib_files("A_minor_ST", 1, True)
+    generate_adlib_files("A_minor_ST", 0.5, True)
 
 
 generate_file_set()
