@@ -10,6 +10,7 @@ TBD
 0. setup env for M1 mac
 1. run `setup_required_folders.sh`
 2. set each files
-3. run
+3. run learn.py
+4. run generate.py to get midi and wav
 
 maybe my work log will help: https://zenn.dev/log5/scraps/af1d7f748ed789
