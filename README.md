@@ -16,7 +16,7 @@ based on https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-na
    - sample1_chord.csv -> sample_chord.csv
 
 5. Obtain a soundfont and place it in the `soundfont` directory.
-   - For example, get FluidR3_GM.sf2 from https://member.keymusician.com/Member/FluidR3_GM/index.html and place it in the soundfont directory.
+   - For example, get `FluidR3_GM.sf2` from https://member.keymusician.com/Member/FluidR3_GM/index.html and place it in the soundfont directory.
 
 6. Run `learn.py` to generate the model.
 
