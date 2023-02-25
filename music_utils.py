@@ -208,7 +208,7 @@ def arrange_using_midi(target_midi: music21.midi):
         elif msg.type == 'note_off':
             note_off_t = msg.time
             bend_chk_counter += note_off_t
-            if note_off_t >= 240 and bend_chk_counter > 1919:
+            if note_off_t >= 240 and bend_chk_counter > 1439:
                 note_on_msg = mido.Message('note_on', note=note_value, velocity=127, time=note_on_t)
                 res_main_tml.append(note_on_msg)
                 # -- bend --
