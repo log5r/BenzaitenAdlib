@@ -7,6 +7,19 @@ based on https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-na
 
 1. Set up Python and TensorFlow for the M1Mac environment.
    * e.g. https://zenn.dev/log5/scraps/af1d7f748ed789 
+   * Since the following import statements appear in the program, please install the respective libraries so that these can be resolved:
+   ```python
+    import music21
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import mido
+    import csv
+    import IPython.display as ipd
+    import midi2audio
+    import glob
+    import tensorflow as tf
+    import tensorflow_probability as tfp
+   ```
 
 2. Download the training musicXML from https://homepages.loria.fr/evincent/omnibook/ and place it in the `omnibook` directory.
 
