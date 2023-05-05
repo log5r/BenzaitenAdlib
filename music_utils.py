@@ -140,12 +140,6 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
                     clist.sort(key=lambda z: z[0])
                     fixed_note = fixed_note + clist[0][1]
 
-            # C or A で黒鍵は登場しないはずなので、補正する。ただし、サフィックス付きコードはたまに許す
-            if i != 0 and (fixed_note % 12) in [1, 3, 6, 8, 10]:
-                if strict_mode or (through_count % 5 != 1 and not chord_has_suffix(goal_chord.figure)):
-                    through_count += 1
-                    fixed_note += random.choice([1, -1])
-
             # 同一ノートが連続したときの処理
             if i != 0 and len(res_note_list) > 0 and res_note_list[-1] == fixed_note:
                 same_note_chain += 1
@@ -158,13 +152,6 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
                     delta = random.choice(list(filter(lambda nt: nt not in err_note_class, good_notes)))
                     fixed_note = (fixed_note // 12) * 12 + delta
 
-        # 高すぎる音は結構耳につくので引いておく
-        if fixed_note > 80:
-            fixed_note -= 12
-        # 低すぎるのもおかしい...
-        if fixed_note < 58:
-            fixed_note += 12
-
         res_note_list.append(fixed_note)
 
     # 最後の小節
@@ -173,6 +160,15 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
         res_note_list.append(end_note_scale + cls)
     res_note_list.append(end_note_scale + 12 + chord_prog[-1].pitchClasses[0])
     res_note_list += [res_note_list[-1]] * 8
+
+    # 高さをまとめて検査
+    for i in range(len(res_note_list)):
+        # 高すぎる音は結構耳につくので引いておく
+        while res_note_list[i] > 72:
+            res_note_list[i] -= 12
+        # 低すぎるのもおかしい...
+        while res_note_list[i] < 58:
+            res_note_list[i] += 12
 
     return res_note_list
 
