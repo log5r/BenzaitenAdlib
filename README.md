@@ -6,7 +6,7 @@ based on https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-na
 ## How to setup
 
 1. Set up Python and TensorFlow for the M1Mac environment.
-   * e.g. https://zenn.dev/log5/scraps/af1d7f748ed789 
+   * see https://developer.apple.com/metal/tensorflow-plugin/ 
 1. Install each module.   
    * Since the following import statements appear in the program, please install the respective modules so that these can be resolved:
    ```python
