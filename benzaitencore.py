@@ -10,15 +10,7 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import datetime
 import functools
-
-TOTAL_MEASURES = 240  # 学習用MusicXMLを読み込む際の小節数の上限
-UNIT_MEASURES = 4  # 1回の生成で扱う旋律の長さ
-BEAT_RESO = 4  # 1拍を何個に分割するか(4の場合は16分音符単位)
-N_BEATS = 4  # 1小節の拍数(今回は4/4なので常に4)
-NOTENUM_FROM = 36  # 扱う音域の下限(この値を含む)
-NOTENUM_THRU = 84  # 扱う音域の上限(この値を含まない)
-INTRO_BLANK_MEASURES = 4  # ブランクおよび伴奏の小節数の合計
-MELODY_LENGTH = 8  # 生成するメロディの長さ(小節数)
+import benzaiten_config as cfg
 
 # ディレクトリ定義
 BASE_DIR = "./"
@@ -79,8 +71,9 @@ def make_model(seq_length, input_dim, output_dim):
 # MusicXMLデータからNote列とChordSymbol列を生成
 # 時間分解能は BEAT_RESO にて指定
 def make_note_and_chord_seq_from_musicxml(score):
-    note_seq = [None] * (TOTAL_MEASURES * N_BEATS * BEAT_RESO)
-    chord_seq = [None] * (TOTAL_MEASURES * N_BEATS * BEAT_RESO)
+    note_seq_arr_size = cfg.TOTAL_MEASURES * cfg.N_BEATS * cfg.BEAT_RESO
+    note_seq = [None] * note_seq_arr_size
+    chord_seq = [None] * note_seq_arr_size
     for element in score.parts[0].elements:
         if isinstance(element, music21.stream.Measure):
             measure_offset = element.offset
@@ -88,24 +81,24 @@ def make_note_and_chord_seq_from_musicxml(score):
                 if isinstance(note, music21.note.Note):
                     onset = measure_offset + note._activeSiteStoredOffset
                     offset = onset + note._duration.quarterLength
-                    for i in range(int(onset * BEAT_RESO), int(offset * BEAT_RESO + 1)):
+                    for i in range(int(onset * cfg.BEAT_RESO), int(offset * cfg.BEAT_RESO + 1)):
                         note_seq[i] = note
                 if isinstance(note, music21.harmony.ChordSymbol):
                     chord_offset = measure_offset + note.offset
-                    for i in range(int(chord_offset * BEAT_RESO),
-                                   int((measure_offset + N_BEATS) * BEAT_RESO + 1)):
+                    for i in range(int(chord_offset * cfg.BEAT_RESO),
+                                   int((measure_offset + cfg.N_BEATS) * cfg.BEAT_RESO + 1)):
                         chord_seq[i] = note
     return note_seq, chord_seq
 
 
 # Note列をone-hot vector列(休符はすべて0)に変換
 def note_seq_to_onehot(note_seq):
-    M = NOTENUM_THRU - NOTENUM_FROM
+    M = cfg.NOTENUM_THRU - cfg.NOTENUM_FROM
     N = len(note_seq)
     matrix = np.zeros((N, M))
     for i in range(N):
         if note_seq[i] is not None:
-            matrix_idx_r = (note_seq[i].pitch.midi - NOTENUM_FROM) % M
+            matrix_idx_r = (note_seq[i].pitch.midi - cfg.NOTENUM_FROM) % M
             matrix[i, matrix_idx_r] = 1
     return matrix
 
@@ -120,12 +113,12 @@ def add_rest_nodes(onehot_seq):
 # 指定された仕様のcsvファイルを読み込んで
 # ChordSymbol列を返す
 def read_chord_file(file, appending=0):
-    chord_seq = [None] * ((MELODY_LENGTH + appending) * N_BEATS)
+    chord_seq = [None] * ((cfg.MELODY_LENGTH + appending) * cfg.N_BEATS)
     with open(file) as f:
         reader = csv.reader(f)
         for row in reader:
             m = int(row[0])  # 小節番号(0始まり)
-            if m < MELODY_LENGTH + appending:
+            if m < cfg.MELODY_LENGTH + appending:
                 b = int(row[1])  # 拍番号(0始まり、今回は0または2)
                 smbl = music21.harmony.ChordSymbol(root=row[2], kind=row[3], bass=row[4])
                 assign_idx = m * 4 + b
@@ -141,7 +134,7 @@ def read_chord_file(file, appending=0):
 # コード進行からChordSymbol列を生成
 # divisionは1小節に何個コードを入れるか
 def make_chord_seq(chord_prog, division):
-    T = int(N_BEATS * BEAT_RESO / division)
+    T = int(cfg._BEATS * cfg.BEAT_RESO / division)
     seq = [None] * (T * len(chord_prog))
     for i in range(len(chord_prog)):
         for t in range(T):
@@ -165,7 +158,7 @@ def chord_seq_to_chroma(chord_seq):
 
 # 空(全要素がゼロ)のピアノロールを生成
 def make_empty_pianoroll(length):
-    return np.zeros((length, NOTENUM_THRU - NOTENUM_FROM + 1))
+    return np.zeros((length, cfg.NOTENUM_THRU - cfg.NOTENUM_FROM + 1))
 
 
 # ピアノロール(one-hot vector列)をノートナンバー列に変換
@@ -173,7 +166,7 @@ def calc_notenums_from_pianoroll(pianoroll):
     notenums = []
     for i in range(pianoroll.shape[0]):
         n = np.argmax(pianoroll[i, :])
-        nn = -1 if n == pianoroll.shape[1] - 1 else n + NOTENUM_FROM
+        nn = -1 if n == pianoroll.shape[1] - 1 else n + cfg.NOTENUM_FROM
         notenums.append(nn)
     return notenums
 
@@ -208,19 +201,19 @@ def read_midi_file(src_filename):
 def make_midi(note_num_list, durations, transpose, backing_midi):
     midi = backing_midi
     MIDI_DIVISION = midi.ticks_per_beat
-    init_tick = INTRO_BLANK_MEASURES * N_BEATS * MIDI_DIVISION
+    init_tick = cfg.INTRO_BLANK_MEASURES * cfg.N_BEATS * MIDI_DIVISION
     midi.tracks[1].pop()
     prev_tick = functools.reduce(lambda x, y: x + y, map(lambda u: u.time, midi.tracks[1]))
     for i, e in enumerate(note_num_list):
         if e > 0:
             curr_note = min(e + transpose, 127)
 
-            note_on_tick = int(i * MIDI_DIVISION / BEAT_RESO) + init_tick
+            note_on_tick = int(i * MIDI_DIVISION / cfg.BEAT_RESO) + init_tick
             note_on_time = note_on_tick - prev_tick
             note_on_msg = mido.Message('note_on', note=curr_note, velocity=127, time=note_on_time)
             midi.tracks[1].append(note_on_msg)
 
-            note_off_tick = int((i + durations[i]) * MIDI_DIVISION / BEAT_RESO) + init_tick
+            note_off_tick = int((i + durations[i]) * MIDI_DIVISION / cfg.BEAT_RESO) + init_tick
             note_off_time = note_off_tick - note_on_tick
             note_off_msg = mido.Message('note_off', note=curr_note, velocity=127, time=note_off_time)
             midi.tracks[1].append(note_off_msg)
@@ -248,8 +241,10 @@ def generate_wav_file(model_idf, dst_filename):
 # メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列に対して、
 # UNIT_MEASURES小節分だけ切り出したものを返す
 def extract_seq(i, onehot_seq, chroma_seq):
-    o = onehot_seq[i * N_BEATS * BEAT_RESO: (i + UNIT_MEASURES) * N_BEATS * BEAT_RESO, :]
-    c = chroma_seq[i * N_BEATS * BEAT_RESO: (i + UNIT_MEASURES) * N_BEATS * BEAT_RESO, :]
+    n_beats_reso = cfg.N_BEATS * cfg.BEAT_RESO
+    offset = (i + cfg.UNIT_MEASURES) * cfg.N_BEATS * cfg.BEAT_RESO
+    o = onehot_seq[i * n_beats_reso: offset, :]
+    c = chroma_seq[i * n_beats_reso: offset, :]
     return o, c
 
 
@@ -264,7 +259,7 @@ def calc_xy(o, c):
 # メロディを表すone-hotベクトル、コードを表すmany-hotベクトルの系列から
 # モデルの入力、出力用のデータを作成して、配列に逐次格納する
 def divide_seq(onehot_seq, chroma_seq, x_all, y_all):
-    for i in range(0, TOTAL_MEASURES, UNIT_MEASURES):
+    for i in range(0, cfg.TOTAL_MEASURES, cfg.UNIT_MEASURES):
         o, c, = extract_seq(i, onehot_seq, chroma_seq)
         if np.any(o[:, 0:-1] != 0):
             x, y = calc_xy(o, c)
