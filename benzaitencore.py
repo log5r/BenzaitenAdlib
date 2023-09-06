@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mido
 import csv
-import IPython.display as ipd
 import midi2audio
 import glob
 import tensorflow as tf
