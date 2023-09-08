@@ -5,6 +5,8 @@ import datetime
 import time
 import common_model_type as ModelType
 import common_features as Features
+import benzaiten_submit_util as bsu
+import benzaiten_config as cfg
 
 
 def print_proc_time(f):
@@ -45,13 +47,13 @@ def generate_adlib_files(model_type, features=None):
 
     chord_prog = bc.read_chord_file(bc.BASE_DIR + chord_file)
     chord_prog_append = bc.read_chord_file(bc.BASE_DIR + chord_file, 1)
-    chroma_vec = bc.chord_seq_to_chroma(bc.make_chord_seq(chord_prog, bc.N_BEATS))
+    chroma_vec = bc.chord_seq_to_chroma(bc.make_chord_seq(chord_prog, cfg.N_BEATS))
     pianoroll = bc.make_empty_pianoroll(chroma_vec.shape[0])
-    for i in range(0, bc.MELODY_LENGTH, bc.UNIT_MEASURES):
+    for i in range(0, cfg.MELODY_LENGTH, cfg.UNIT_MEASURES):
         o, c = bc.extract_seq(i, pianoroll, chroma_vec)
         x, y = bc.calc_xy(o, c)
         y_new = main_vae.predict(np.array([x]))
-        index_from = i * (bc.N_BEATS * bc.BEAT_RESO)
+        index_from = i * (cfg.N_BEATS * cfg.BEAT_RESO)
         pianoroll[index_from: index_from + y_new[0].shape[0], :] = y_new[0]
 
     note_num_list = bc.calc_notenums_from_pianoroll(pianoroll)
@@ -73,15 +75,23 @@ def generate_adlib_files(model_type, features=None):
     res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi)
 
     # MIDIファイル補正
-    fixed_midi = mu.arrange_using_midi(res_midi)
+    arranged_midi = mu.arrange_using_midi(res_midi)
     # TBD
-    for i, tr in enumerate(fixed_midi.tracks[1]):
+    for i, tr in enumerate(arranged_midi.tracks[1]):
         print(i, tr)
+
+    fixed_midi = bsu.replace_prog_chg(arranged_midi)
 
     # MIDIファイルのセーブ
     output_file = "output/%s_output_%s.mid" % (timestamp, suffix)
     midi_out_path = bc.BASE_DIR + output_file
     fixed_midi.save(midi_out_path)
+
+    # 【弁財天第2幕用】提出用MIDIファイル生成
+    sbm_midi = bsu.make_midi_for_submission_using_midi(fixed_midi)
+    sbm_output_file = "contest_submit/%s_output_%s_solo.mid" % (timestamp, suffix)
+    sbm_midi_out_path = bc.BASE_DIR + sbm_output_file
+    sbm_midi.save(sbm_midi_out_path)
 
     # MWAVファイルを生成
     bc.generate_wav_file(suffix, midi_out_path)

@@ -27,6 +27,7 @@ def replace_prog_chg(midi):
         for msg in track:
             if msg.type == 'program_change' and msg.channel == cfg.MELODY_CH:
                 msg.program = cfg.MELODY_PROG_CHG
+                return midi
 
 
 # MIDIファイル（提出用、伴奏なし）を生成
@@ -35,6 +36,13 @@ def make_midi_for_submission(notenums, durations, transpose, dst_filename):
     midi.ticks_per_beat = cfg.TICKS_PER_BEAT
     midi.tracks.append(make_midi_track(notenums, durations, transpose, cfg.TICKS_PER_BEAT))
     midi.save(dst_filename)
+
+
+def make_midi_for_submission_using_midi(source_midi):
+    midi = mido.MidiFile(type=1)
+    midi.ticks_per_beat = cfg.TICKS_PER_BEAT
+    midi.tracks.append(source_midi.tracks[1])
+    return midi
 
 
 # MIDIファイル（チェック用、伴奏あり）を生成

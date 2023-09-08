@@ -133,7 +133,7 @@ def read_chord_file(file, appending=0):
 # コード進行からChordSymbol列を生成
 # divisionは1小節に何個コードを入れるか
 def make_chord_seq(chord_prog, division):
-    T = int(cfg._BEATS * cfg.BEAT_RESO / division)
+    T = int(cfg.N_BEATS * cfg.BEAT_RESO / division)
     seq = [None] * (T * len(chord_prog))
     for i in range(len(chord_prog)):
         for t in range(T):
