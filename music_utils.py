@@ -2,6 +2,7 @@ import random
 import music21.harmony as harmony
 import music21.midi
 import mido
+import common_features as Features
 
 
 # コードのサフィックスを除外
@@ -80,15 +81,20 @@ def note_chain_breaking_condition(i):
 
 
 # ノート補正
-def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_mode):
+def corrected_note_num_list(notenumlist, chord_prog, features):
     res_note_list = []
     same_note_chain = 0
     through_count = 0
     bottom_count = 0
+
+    ignore_chord_suffix = Features.IGNORE_CHORD_SUFFIX in features
+    use_triplet_semiquaver = Features.TRIPLET_SEMIQUAVER in features
+    use_swing_mode_via2t3 = Features.COPY_SQ2_TO_SQ3 in features
+
     for i, e in enumerate(notenumlist):
         area_chord = chord_prog[i // 4]
 
-        if random.random() < remove_suffix_prob:
+        if ignore_chord_suffix:
             goal_chord = harmony.ChordSymbol(str(remove_chord_suffix(area_chord.figure)))
         else:
             goal_chord = area_chord
@@ -107,6 +113,15 @@ def corrected_note_num_list(notenumlist, chord_prog, remove_suffix_prob, strict_
                 will_fix_bar_5 = True
             else:
                 will_fix_bar_5 = False
+
+        if use_swing_mode_via2t3:
+            # TODO: this is test impl
+            if i % 4 == 2:
+                fixed_note = res_note_list[-1]
+
+        if use_triplet_semiquaver:
+            # TODO: not implement yet
+            pass
 
         if i == 0:
             if random.random() < 0.6:
