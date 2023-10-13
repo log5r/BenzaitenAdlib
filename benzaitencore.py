@@ -10,6 +10,7 @@ import tensorflow_probability as tfp
 import datetime
 import functools
 import benzaiten_config as cfg
+import common_features as Feature
 import math
 
 # ディレクトリ定義
@@ -198,13 +199,16 @@ def read_midi_file(src_filename):
 
 
 # MIDIファイルを生成
-def make_midi(note_num_list, durations, transpose, backing_midi, use_shuffle=False):
+def make_midi(note_num_list, durations, transpose, backing_midi, features):
     midi = backing_midi
-    midi.tracks[1] = make_midi_track(note_num_list, durations, transpose, cfg.TICKS_PER_BEAT, use_shuffle)
+    midi.tracks[1] = make_midi_track(note_num_list, durations, transpose, cfg.TICKS_PER_BEAT, features)
     return midi
 
 
-def make_midi_track(note_nums, durations, transpose, ticks_per_beat, shuffle=True):
+def make_midi_track(note_nums, durations, transpose, ticks_per_beat, features):
+
+    use_shuffle_mode = Feature.V2_SHUFFLE in features
+
     track = mido.MidiTrack()
     track.append(mido.Message('program_change', program=cfg.MELODY_PROG_CHG, time=0))
     init_tick = cfg.INTRO_BLANK_MEASURES * cfg.N_BEATS * ticks_per_beat
@@ -215,7 +219,7 @@ def make_midi_track(note_nums, durations, transpose, ticks_per_beat, shuffle=Tru
         ticks_per_beat * 2 / cfg.BEAT_RESO,
         ticks_per_beat * 3 / cfg.BEAT_RESO
     ]
-    if shuffle:
+    if use_shuffle_mode:
         tick_table = [
             0,
             ticks_per_beat * 2 / (3 * int(cfg.BEAT_RESO / 2)),
