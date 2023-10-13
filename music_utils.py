@@ -5,6 +5,7 @@ import mido
 import common_features as Features
 import numpy as np
 
+
 # コードのサフィックスを除外
 def remove_chord_suffix(chord_string):
     lst = list(chord_string)
