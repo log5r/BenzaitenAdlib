@@ -10,6 +10,7 @@ import tensorflow_probability as tfp
 import datetime
 import functools
 import benzaiten_config as cfg
+import math
 
 # ディレクトリ定義
 BASE_DIR = "./"
@@ -197,29 +198,57 @@ def read_midi_file(src_filename):
 
 
 # MIDIファイルを生成
-def make_midi(note_num_list, durations, transpose, backing_midi):
+def make_midi(note_num_list, durations, transpose, backing_midi, use_shuffle=False):
     midi = backing_midi
-    MIDI_DIVISION = midi.ticks_per_beat
-    init_tick = cfg.INTRO_BLANK_MEASURES * cfg.N_BEATS * MIDI_DIVISION
-    midi.tracks[1].pop()
-    prev_tick = functools.reduce(lambda x, y: x + y, map(lambda u: u.time, midi.tracks[1]))
-    for i, e in enumerate(note_num_list):
-        if e > 0:
-            curr_note = min(e + transpose, 127)
-
-            note_on_tick = int(i * MIDI_DIVISION / cfg.BEAT_RESO) + init_tick
-            note_on_time = note_on_tick - prev_tick
-            note_on_msg = mido.Message('note_on', note=curr_note, velocity=127, time=note_on_time)
-            midi.tracks[1].append(note_on_msg)
-
-            note_off_tick = int((i + durations[i]) * MIDI_DIVISION / cfg.BEAT_RESO) + init_tick
-            note_off_time = note_off_tick - note_on_tick
-            note_off_msg = mido.Message('note_off', note=curr_note, velocity=127, time=note_off_time)
-            midi.tracks[1].append(note_off_msg)
-
-            prev_tick = note_off_tick
-
+    midi.tracks[1] = make_midi_track(note_num_list, durations, transpose, cfg.TICKS_PER_BEAT, use_shuffle)
     return midi
+
+
+def make_midi_track(note_nums, durations, transpose, ticks_per_beat, shuffle=True):
+    track = mido.MidiTrack()
+    track.append(mido.Message('program_change', program=cfg.MELODY_PROG_CHG, time=0))
+    init_tick = cfg.INTRO_BLANK_MEASURES * cfg.N_BEATS * ticks_per_beat
+    prev_tick = 0
+    tick_table = [
+        0,
+        ticks_per_beat / cfg.BEAT_RESO,
+        ticks_per_beat * 2 / cfg.BEAT_RESO,
+        ticks_per_beat * 3 / cfg.BEAT_RESO
+    ]
+    if shuffle:
+        tick_table = [
+            0,
+            ticks_per_beat * 2 / (3 * int(cfg.BEAT_RESO / 2)),
+            ticks_per_beat * 3 / (3 * int(cfg.BEAT_RESO / 2)),
+            ticks_per_beat * 5 / (3 * int(cfg.BEAT_RESO / 2))
+        ]
+    for i in range(len(note_nums)):
+        if note_nums[i] > 0:
+            curr_tick = int(math.floor(i / cfg.BEAT_RESO) * ticks_per_beat + tick_table[i % cfg.BEAT_RESO] + init_tick)
+            track.append(
+                mido.Message(
+                    'note_on',
+                    note=note_nums[i] + transpose,
+                    velocity=100,
+                    time=curr_tick - prev_tick
+                )
+            )
+            print('note-on: %s => %s : %s : %s | %s' % (note_nums[i] + transpose, curr_tick - prev_tick, i, i + durations[i], i % cfg.BEAT_RESO))
+            prev_tick = curr_tick
+            curr_tick = int(math.floor((i + durations[i]) / cfg.BEAT_RESO) * ticks_per_beat
+                            + tick_table[(i + durations[i]) % cfg.BEAT_RESO]
+                            + init_tick)
+            track.append(
+                mido.Message(
+                    'note_off',
+                    note=note_nums[i] + transpose,
+                    velocity=100,
+                    time=curr_tick - prev_tick
+                )
+            )
+            print('note-off: %s => %s : %s : %s | %s' % (note_nums[i] + transpose, curr_tick - prev_tick, i, i + durations[i], i % cfg.BEAT_RESO))
+            prev_tick = curr_tick
+    return track
 
 
 # ピアノロールを描画

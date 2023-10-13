@@ -26,6 +26,9 @@ def generate_adlib_files(model_type, features=None):
     if features is None:
         features = []
 
+    # 引数解析
+    use_shuffle_mode = Features.V2_SHUFFLE in features
+
     # タイムスタンプ
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
 
@@ -72,7 +75,7 @@ def generate_adlib_files(model_type, features=None):
     suffix = "%s_%s" % (model_type, "_".join(features))
 
     # MIDIファイル生成
-    res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi)
+    res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi, use_shuffle_mode)
 
     # MIDIファイル補正
     arranged_midi = mu.arrange_using_midi(res_midi)
