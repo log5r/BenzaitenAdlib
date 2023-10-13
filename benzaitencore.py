@@ -1,3 +1,5 @@
+import random
+
 import music21
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,6 +13,7 @@ import datetime
 import functools
 import benzaiten_config as cfg
 import common_features as Feature
+import music_utils as mu
 import math
 
 # ディレクトリ定義
@@ -208,50 +211,49 @@ def make_midi(note_num_list, durations, transpose, backing_midi, features):
 def make_midi_track(note_nums, durations, transpose, ticks_per_beat, features):
 
     use_shuffle_mode = Feature.V2_SHUFFLE in features
+    use_triplet_semiquaver = Feature.TRIPLET_SEMIQUAVER in features
 
     track = mido.MidiTrack()
     track.append(mido.Message('program_change', program=cfg.MELODY_PROG_CHG, time=0))
     init_tick = cfg.INTRO_BLANK_MEASURES * cfg.N_BEATS * ticks_per_beat
     prev_tick = 0
-    tick_table = [
-        0,
-        ticks_per_beat / cfg.BEAT_RESO,
-        ticks_per_beat * 2 / cfg.BEAT_RESO,
-        ticks_per_beat * 3 / cfg.BEAT_RESO
-    ]
+    prev_note = 0
+    semiquiv = ticks_per_beat / cfg.BEAT_RESO
+    triplet_sqv = ticks_per_beat / (3 * int(cfg.BEAT_RESO / 2))
+    tick_table = [0, semiquiv, semiquiv * 2, semiquiv * 3]
     if use_shuffle_mode:
-        tick_table = [
-            0,
-            ticks_per_beat * 2 / (3 * int(cfg.BEAT_RESO / 2)),
-            ticks_per_beat * 3 / (3 * int(cfg.BEAT_RESO / 2)),
-            ticks_per_beat * 5 / (3 * int(cfg.BEAT_RESO / 2))
-        ]
+        tick_table = [0, triplet_sqv * 2, triplet_sqv * 3, triplet_sqv * 5]
+
+    def add_note_on(note, tick):
+        track.append(mido.Message('note_on', note=note, velocity=127, time=tick))
+        print('note-on: %s => %s : %s : %s | %s' % (note, tick, i, i + durations[i], i % cfg.BEAT_RESO))
+
+    def add_note_off(note, tick):
+        track.append(mido.Message('note_off', note=note, velocity=127, time=tick))
+        print('note-off: %s => %s : %s : %s | %s' % (note, tick, i, i + durations[i], i % cfg.BEAT_RESO))
+
     for i in range(len(note_nums)):
-        if note_nums[i] > 0:
+        this_note = note_nums[i]
+        if this_note > 0:
             curr_tick = int(math.floor(i / cfg.BEAT_RESO) * ticks_per_beat + tick_table[i % cfg.BEAT_RESO] + init_tick)
-            track.append(
-                mido.Message(
-                    'note_on',
-                    note=note_nums[i] + transpose,
-                    velocity=100,
-                    time=curr_tick - prev_tick
-                )
-            )
-            print('note-on: %s => %s : %s : %s | %s' % (note_nums[i] + transpose, curr_tick - prev_tick, i, i + durations[i], i % cfg.BEAT_RESO))
+            add_note_on(this_note + transpose, curr_tick - prev_tick)
             prev_tick = curr_tick
             curr_tick = int(math.floor((i + durations[i]) / cfg.BEAT_RESO) * ticks_per_beat
                             + tick_table[(i + durations[i]) % cfg.BEAT_RESO]
                             + init_tick)
-            track.append(
-                mido.Message(
-                    'note_off',
-                    note=note_nums[i] + transpose,
-                    velocity=100,
-                    time=curr_tick - prev_tick
-                )
-            )
-            print('note-off: %s => %s : %s : %s | %s' % (note_nums[i] + transpose, curr_tick - prev_tick, i, i + durations[i], i % cfg.BEAT_RESO))
+            sub_tick_unit = int((curr_tick - prev_tick) / 2)
+            if (use_triplet_semiquaver
+                    and durations[i] == 1
+                    and sub_tick_unit > 79
+                    and any(mu.use_triplet_semiquaver_condition(i))):
+                add_note_off(this_note + transpose, sub_tick_unit)
+                mid_cmp_note = int((this_note + note_nums[i + 1]) / 2)
+                add_note_on(mid_cmp_note + transpose, 0)
+                add_note_off(mid_cmp_note + transpose, sub_tick_unit)
+            else:
+                add_note_off(this_note + transpose, curr_tick - prev_tick)
             prev_tick = curr_tick
+        prev_note = this_note
     return track
 
 

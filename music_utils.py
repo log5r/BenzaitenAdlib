@@ -57,6 +57,29 @@ def note_canonicalization_conditions(i):
     ]
 
 
+def use_triplet_semiquaver_condition(i):
+    return [
+        # 1
+        (12 <= i < 16),
+        # 2
+        (16 <= i < 20),
+        (28 <= i < 32),
+        # 3
+        (42 <= i < 48),
+        # 4
+        (56 <= i < 64),
+        # 5
+        (64 <= i < 80),
+        # 6
+        (80 <= i < 82),
+        (92 <= i < 96),
+        # 7
+        (102 <= i < 112),
+        # 8
+        (112 <= i)
+    ]
+
+
 def note_chain_breaking_condition(i):
     return [
         # 1
@@ -125,7 +148,7 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
             fixed_note = res_note_list[-1]
         elif 64 <= i < 76:
             pnb = ((6 + res_note_list[-1]) // 12) * 12
-            fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[-1] + 2][i % 3]
+            fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[0]][i % 3]
         else:
             # --- 守りの補正 ---
             if fixed_note < 24:
