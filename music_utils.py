@@ -3,6 +3,7 @@ import music21.harmony as harmony
 import music21.midi
 import mido
 import common_features as Features
+import numpy as np
 
 
 # コードのサフィックスを除外
@@ -81,17 +82,21 @@ def note_chain_breaking_condition(i):
 
 
 # ノート補正
-def corrected_note_num_list(notenumlist, chord_prog, features):
+def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
     res_note_list = []
     same_note_chain = 0
     through_count = 0
     bottom_count = 0
 
     ignore_chord_suffix = Features.IGNORE_CHORD_SUFFIX in features
-    use_triplet_semiquaver = Features.TRIPLET_SEMIQUAVER in features
     use_swing_mode_via2t3 = Features.COPY_SQ2_TO_SQ3 in features
 
-    for i, e in enumerate(notenumlist):
+    key, mode = model_type.split("_")
+    base_key = music21.key.Key(key, mode)
+
+    prev_note = 0
+
+    for i, e in enumerate(note_num_list):
         area_chord = chord_prog[i // 4]
 
         if ignore_chord_suffix:
@@ -106,22 +111,10 @@ def corrected_note_num_list(notenumlist, chord_prog, features):
 
         # --- 攻めの補正 ---
 
-        # 5小節目の大胆な変更は必要？
-        will_fix_bar_5 = False
-        if 64 <= i < 76 and i % 4 == 0:
-            if random.random() < 0.45:
-                will_fix_bar_5 = True
-            else:
-                will_fix_bar_5 = False
-
         if use_swing_mode_via2t3:
             # TODO: this is test impl
             if i % 4 == 2:
                 fixed_note = res_note_list[-1]
-
-        if use_triplet_semiquaver:
-            # TODO: not implement yet
-            pass
 
         if i == 0:
             if random.random() < 0.6:
@@ -130,7 +123,7 @@ def corrected_note_num_list(notenumlist, chord_prog, features):
                 fixed_note = 60 + random.choice(good_notes)
         elif 1 <= i < 3:
             fixed_note = res_note_list[-1]
-        elif 64 <= i < 76 and will_fix_bar_5:
+        elif 64 <= i < 76:
             pnb = ((6 + res_note_list[-1]) // 12) * 12
             fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[-1] + 2][i % 3]
         else:
@@ -154,6 +147,21 @@ def corrected_note_num_list(notenumlist, chord_prog, features):
                         clist.append([abs(buf), buf])
                     clist.sort(key=lambda z: z[0])
                     fixed_note = fixed_note + clist[0][1]
+                else:
+                    # Maj 7th の降下は禁止
+                    if i != 0 and (prev_note - e) == 11:
+                        e = prev_note + 1
+                    # コードを取得
+                    area_chord = chord_prog[i // 4]  # 1拍ごとにとりだし（4分音符単位のため）
+                    # 有効コード音を取得
+                    valid_notes = list(map(lambda x: x.pitch.midi % 12, area_chord.notes))
+                    valid_notes = np.unique(valid_notes)
+                    # アボイドノートを取得
+                    root_note = area_chord.root().midi % 12
+                    avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
+                    # 音補正
+                    fixed_note = fixed_note_num(e, valid_notes, avoid_notes)
+                    print("note: %d %d" % (fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord.notes) + "|" + str(valid_notes))
 
             # 同一ノートが連続したときの処理
             if i != 0 and len(res_note_list) > 0 and res_note_list[-1] == fixed_note:
@@ -168,6 +176,8 @@ def corrected_note_num_list(notenumlist, chord_prog, features):
                     fixed_note = (fixed_note // 12) * 12 + delta
 
         res_note_list.append(fixed_note)
+        # 前の音を保存
+        prev_note = e
 
     # 最後の小節
     end_note_scale = (res_note_list[-1] // 12) * 12
@@ -179,7 +189,7 @@ def corrected_note_num_list(notenumlist, chord_prog, features):
     # 高さをまとめて検査
     for i in range(len(res_note_list)):
         # 高すぎる音は結構耳につくので引いておく
-        while res_note_list[i] > 72:
+        while res_note_list[i] > 84:
             res_note_list[i] -= 12
         # 低すぎるのもおかしい...
         while res_note_list[i] < 58:
@@ -247,3 +257,56 @@ def arrange_using_midi(target_midi: music21.midi):
 
     res_midi.tracks[1] = res_main_tml
     return res_midi
+
+
+# 音補正処理
+def fixed_note_num(note_num, valid_notes, avoid_notes):
+    if note_num == -1:
+        return note_num
+    elif note_num % 12 in avoid_notes:
+        # アボイドノート時は最寄りの音に補正
+        for i, e in enumerate(valid_notes):
+            if (e - note_num % 12) > 0:
+                fixed_note = note_num + (e - note_num % 12)
+                print("fixed note: %d -> %d %d" % (note_num, fixed_note, fixed_note % 12))
+                return fixed_note
+    # それ以外は有効な音階とみなす
+    return note_num
+
+
+# ドミナント判定（すごく強力なコード。通常のドミナントと代理のセカンダリードミナントを含む）
+def is_dominant(area_chord, base_key):
+    # ドミナント7thの場合はTrue
+    if area_chord.isDominantSeventh():
+        return True
+    # 7thが含まれなくてもメジャーの I or IV は M7系なので除外
+    if area_chord.isMajorTriad() and (area_chord.root().midi % 12 == 0 or area_chord.root().midi % 12 == 5):
+        return False
+    # それ以外のII,III,VI,VIIはマイナー系のはずだが、メジャー系の場合は、ドミナントとして扱う(セカンダリードミナント）
+    # Vのメジャーも7thが省略されているだけで特に指定がなければ、ドミナントとして扱う
+    if area_chord.isMajorTriad():
+        return True
+    return False
+
+
+# アボイドノートを取得する
+def get_avoid_notes(area_chord, base_key, root_note):
+    # ドミナントセブンスもしくはIonianの場合は4thを避ける
+    if is_dominant(area_chord, base_key) or root_note == 0:
+        avoid_notes = [root_note + 5]
+    # Dorianの場合は6thを避ける
+    elif root_note == 2:
+        avoid_notes = [root_note + 9]
+    # Phrygianの場合はb2th, b6thを避ける
+    elif root_note == 4:
+        avoid_notes = [root_note + 1, root_note + 8]
+    # Aeolianの場合はb6thを避ける
+    elif root_note == 9:
+        avoid_notes = [root_note + 8]
+    # Locrianの場合はb2thを避ける
+    elif root_note == 11:
+        avoid_notes = [root_note + 1]
+    else:
+        avoid_notes = []
+    return avoid_notes
+

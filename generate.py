@@ -63,7 +63,7 @@ def generate_adlib_files(model_type, features=None):
     target_midi = bc.read_midi_file(backing_mus_path)
 
     # 補正
-    corrected_notes = mu.corrected_note_num_list(note_num_list, chord_prog_append, features)
+    corrected_notes = mu.corrected_note_num_list(note_num_list, chord_prog_append, model_type, features)
 
     # 同一ノートを結合
     durations, dur_fixed_notes = bc.calc_durations(corrected_notes)
@@ -72,7 +72,7 @@ def generate_adlib_files(model_type, features=None):
     suffix = "%s_%s" % (model_type, "_".join(features))
 
     # MIDIファイル生成
-    res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi)
+    res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi, features)
 
     # MIDIファイル補正
     arranged_midi = mu.arrange_using_midi(res_midi)
@@ -99,7 +99,7 @@ def generate_adlib_files(model_type, features=None):
 
 @print_proc_time
 def generate_file_set():
-    generate_adlib_files(ModelType.C_MAJOR, features=[Features.COPY_SQ2_TO_SQ3])
+    generate_adlib_files(ModelType.C_MAJOR, features=[Features.V2_SHUFFLE])
     # generate_adlib_files(ModelType.A_MINOR)
     # generate_adlib_files(ModelType.C_MAJOR, features=[Feature.STRICT_MODE])
 
