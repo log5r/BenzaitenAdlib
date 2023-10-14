@@ -60,11 +60,12 @@ def note_canonicalization_conditions(i):
 def use_triplet_semiquaver_condition(i):
     return [
         # 1
-        (12 <= i < 16),
+        False,
         # 2
         (16 <= i < 20),
         (28 <= i < 32),
         # 3
+        (32 <= i < 46),
         (42 <= i < 48),
         # 4
         (56 <= i < 64),
@@ -74,9 +75,11 @@ def use_triplet_semiquaver_condition(i):
         (80 <= i < 82),
         (92 <= i < 96),
         # 7
-        (102 <= i < 112),
+        (96 <= i < 104),
+        (108 <= i < 112),
         # 8
-        (112 <= i)
+        (112 <= i < 116),
+        (120 <= i)
     ]
 
 
@@ -146,7 +149,10 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
                 fixed_note = 60 + random.choice(good_notes)
         elif 1 <= i < 3:
             fixed_note = res_note_list[-1]
-        elif 64 <= i < 76:
+        elif 64 <= i < 67:
+            pnb = ((res_note_list[-1]) // 12) * 12
+            fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[0]][i % 3]
+        elif 67 <= i < 76:
             pnb = ((6 + res_note_list[-1]) // 12) * 12
             fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[0]][i % 3]
         else:

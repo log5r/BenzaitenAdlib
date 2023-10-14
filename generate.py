@@ -72,7 +72,7 @@ def generate_adlib_files(model_type, features=None):
     suffix = "%s_%s" % (model_type, "_".join(features))
 
     # MIDIファイル生成
-    res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi, features)
+    res_midi = bc.make_midi(dur_fixed_notes, chord_prog_append, durations, 12, target_midi, features)
 
     # MIDIファイル補正
     arranged_midi = mu.arrange_using_midi(res_midi)
@@ -100,10 +100,10 @@ def generate_adlib_files(model_type, features=None):
 @print_proc_time
 def generate_file_set():
     # generate_adlib_files(ModelType.C_MAJOR)
-    generate_adlib_files(ModelType.C_MAJOR, features=[Features.V2_SHUFFLE, Features.TRIPLET_SEMIQUAVER])
-    # generate_adlib_files(ModelType.A_MINOR)
+    # generate_adlib_files(ModelType.C_MAJOR, features=[Features.V2_SHUFFLE, Features.TRIPLET_SEMIQUAVER])
+    generate_adlib_files(ModelType.A_MINOR)
     # generate_adlib_files(ModelType.A_MINR, features=[Features.STRICT_MODE])
-    # generate_adlib_files(ModelType.C_MAJOR, features=[Features.TRIPLET_SEMIQUAVER])
+    # generate_adlib_files(ModelType.A_MINOR, features=[Features.V2_SHUFFLE, Features.TRIPLET_SEMIQUAVER])
 
 
 generate_file_set()

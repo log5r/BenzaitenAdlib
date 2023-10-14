@@ -202,13 +202,13 @@ def read_midi_file(src_filename):
 
 
 # MIDIファイルを生成
-def make_midi(note_num_list, durations, transpose, backing_midi, features):
+def make_midi(note_num_list, chord_prog, durations, transpose, backing_midi, features):
     midi = backing_midi
-    midi.tracks[1] = make_midi_track(note_num_list, durations, transpose, cfg.TICKS_PER_BEAT, features)
+    midi.tracks[1] = make_midi_track(note_num_list, chord_prog, durations, transpose, cfg.TICKS_PER_BEAT, features)
     return midi
 
 
-def make_midi_track(note_nums, durations, transpose, ticks_per_beat, features):
+def make_midi_track(note_nums, chord_prog, durations, transpose, ticks_per_beat, features):
 
     use_shuffle_mode = Feature.V2_SHUFFLE in features
     use_triplet_semiquaver = Feature.TRIPLET_SEMIQUAVER in features
@@ -221,6 +221,7 @@ def make_midi_track(note_nums, durations, transpose, ticks_per_beat, features):
     semiquiv = ticks_per_beat / cfg.BEAT_RESO
     triplet_sqv = ticks_per_beat / (3 * int(cfg.BEAT_RESO / 2))
     tick_table = [0, semiquiv, semiquiv * 2, semiquiv * 3]
+
     if use_shuffle_mode:
         tick_table = [0, triplet_sqv * 2, triplet_sqv * 3, triplet_sqv * 5]
 
@@ -234,6 +235,10 @@ def make_midi_track(note_nums, durations, transpose, ticks_per_beat, features):
 
     for i in range(len(note_nums)):
         this_note = note_nums[i]
+        current_chord = chord_prog[i // 4]
+        avoid_notes = mu.get_avoid_notes(current_chord, None, current_chord.pitchClasses[0])
+        # シャッフルの八分三連がきたら無理やり音を補完して16分三連3個の音符に変化させます。
+        # TODO: 時間がなくてここに入れちゃったんですが、本来なら分離すべき
         if this_note > 0:
             curr_tick = int(math.floor(i / cfg.BEAT_RESO) * ticks_per_beat + tick_table[i % cfg.BEAT_RESO] + init_tick)
             add_note_on(this_note + transpose, curr_tick - prev_tick)
@@ -248,6 +253,7 @@ def make_midi_track(note_nums, durations, transpose, ticks_per_beat, features):
                     and any(mu.use_triplet_semiquaver_condition(i))):
                 add_note_off(this_note + transpose, sub_tick_unit)
                 mid_cmp_note = int((this_note + note_nums[i + 1]) / 2)
+                mid_cmp_note = mu.fixed_note_num(mid_cmp_note, current_chord.pitchClasses, avoid_notes)
                 add_note_on(mid_cmp_note + transpose, 0)
                 add_note_off(mid_cmp_note + transpose, sub_tick_unit)
             else:
