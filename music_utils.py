@@ -156,41 +156,24 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
             pnb = ((6 + res_note_list[-1]) // 12) * 12
             fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[0]][i % 3]
         else:
-            # --- 守りの補正 ---
-            if fixed_note < 24:
-                # 低すぎる音が出たら適宜取り繕う
-                next_n_idx = bottom_count % len(good_notes)
-                if len(res_note_list) > 0:
-                    if random.random() < 0.5:
-                        fixed_note = res_note_list[-1]
-                    else:
-                        fixed_note = ((6 + res_note_list[-1]) // 12) * 12 + good_notes[next_n_idx]
-                        bottom_count += 1
-            elif (fixed_note % 12) not in good_notes:
-                # コード構成音にない音について、特定条件のもとで補正する
-                if any(note_canonicalization_conditions(i)):
-                    clist = []
-                    for k in goal_chord:
-                        expected_class = k.pitch.midi % 12
-                        buf = expected_class - target_class
-                        clist.append([abs(buf), buf])
-                    clist.sort(key=lambda z: z[0])
-                    fixed_note = fixed_note + clist[0][1]
-                else:
-                    # Maj 7th の降下は禁止
-                    if i != 0 and (prev_note - e) == 11:
-                        e = prev_note + 1
-                    # コードを取得
-                    area_chord = chord_prog[i // 4]  # 1拍ごとにとりだし（4分音符単位のため）
-                    # 有効コード音を取得
-                    valid_notes = list(map(lambda x: x.pitch.midi % 12, area_chord.notes))
-                    valid_notes = np.unique(valid_notes)
-                    # アボイドノートを取得
-                    root_note = area_chord.root().midi % 12
-                    avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
-                    # 音補正
-                    fixed_note = fixed_note_num(e, valid_notes, avoid_notes)
-                    print("note: %d %d" % (fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord.notes) + "|" + str(valid_notes))
+            # １オクターブ以上の移動は禁止
+            if i != 0 and abs(e - prev_note) > 12:
+                e = e + (prev_note % 12 - e % 12)  # 最寄りの音階の移動に修正
+            # Maj 7th の降下は禁止
+            if i != 0 and (prev_note - e) == 11:
+                e = prev_note + 2
+            # コードを取得
+            area_chord = chord_prog[i // 4]  # 1拍ごとにとりだし（4分音符単位のため）
+            # 有効コード音を取得
+            valid_notes = list(map(lambda x: x.pitch.midi % 12, area_chord.notes))
+            valid_notes = np.unique(valid_notes)
+            # アボイドノートを取得
+            root_note = area_chord.root().midi % 12
+            avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
+            # 音補正
+            fixed_note = fixed_note_num(e, valid_notes, avoid_notes)
+            print("note: %d %d" % (fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord.notes) + "|" + str(valid_notes))
+
 
             # 同一ノートが連続したときの処理
             if i != 0 and len(res_note_list) > 0 and res_note_list[-1] == fixed_note:
