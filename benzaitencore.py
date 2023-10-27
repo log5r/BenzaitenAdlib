@@ -114,9 +114,18 @@ def add_rest_nodes(onehot_seq):
     return np.concatenate([onehot_seq, rest], axis=1)
 
 
-# 指定された仕様のcsvファイルを読み込んで
-# ChordSymbol列を返す
+# 指定された仕様のcsvファイルを読み込んでChordSymbol列を返す（4拍子区切りのコード配列一覧）
+# ８小節の場合、32個のコード配列を返す。
+#     0,0,F,major-seventh,F
+#     0,2,F,major-seventh,F
+#     1,0,F,major-seventh,F
+#     1,2,F,major-seventh,F
+#     2,0,E,minor-seventh,E
+#     2,2,E,minor-seventh,E
+#     3,0,E,minor-seventh,E
+#     (小説番号),(拍番号),(ルート音),(コード種類),(ベース音)
 def read_chord_file(file, appending=0):
+    # 拍数分の配列を作成 appdeningは後ろに追加する小節数
     chord_seq = [None] * ((cfg.MELODY_LENGTH + appending) * cfg.N_BEATS)
     with open(file) as f:
         reader = csv.reader(f)
@@ -135,8 +144,20 @@ def read_chord_file(file, appending=0):
     return chord_seq
 
 
+# magenta向けにコードの一覧を文字列で表示
+def parse_chord_for_magenta(chord_prog: []) -> str:
+    chords_str = '"'
+    chord_flatten = map(lambda x: x.figure, chord_prog)
+    chords_str += ' '.join(chord_flatten) + '"'
+    return chords_str
+
+
 # コード進行からChordSymbol列を生成
-# divisionは1小節に何個コードを入れるか
+# divisionでさらに解像度をあげる。
+# 1:  4分音符単位
+# 2:  8分音符単位
+# 4: 16分音符単位
+# 8: 32分音符単位
 def make_chord_seq(chord_prog, division):
     T = int(cfg.N_BEATS * cfg.BEAT_RESO / division)
     seq = [None] * (T * len(chord_prog))
@@ -152,11 +173,19 @@ def make_chord_seq(chord_prog, division):
 # ChordSymbol列をmany-hot (chroma) vector列に変換
 def chord_seq_to_chroma(chord_seq):
     N = len(chord_seq)
-    matrix = np.zeros((N, 12))
+    matrix = np.zeros((N, 24))  # コード空間を2オクターブに拡張（ベース音をモデルとして確実にイメージさせる）
     for i in range(N):
         if chord_seq[i] is not None:
+            transpose = 0
             for note in chord_seq[i]._notes:
-                matrix[i, note.pitch.midi % 12] = 1
+                # print(str(note.pitch) + ":" + str(note.pitch.midi))
+                # # C3(48)以下の場合は1オクターブ分底上げする
+                # if (note.pitch.midi < 48):
+                #     transpose = 12
+                # elif (note.pitch.midi >= 72):
+                #     transpose = -12  # 分数コードは超えるので1オクターブ下げる
+                matrix[i, (note.pitch.midi + transpose) % 24] = 1
+            print(matrix[i])
     return matrix
 
 
@@ -253,7 +282,7 @@ def make_midi_track(note_nums, chord_prog, durations, transpose, ticks_per_beat,
                     and any(mu.use_triplet_semiquaver_condition(i))):
                 add_note_off(this_note + transpose, sub_tick_unit)
                 mid_cmp_note = int((this_note + note_nums[i + 1]) / 2)
-                mid_cmp_note = mu.fixed_note_num(mid_cmp_note, current_chord.pitchClasses, avoid_notes)
+                mid_cmp_note = mu.fixed_note_num(mid_cmp_note, current_chord.pitchClasses, avoid_notes, i % cfg.BEAT_RESO)
                 add_note_on(mid_cmp_note + transpose, 0)
                 add_note_off(mid_cmp_note + transpose, sub_tick_unit)
             else:
@@ -309,17 +338,17 @@ def divide_seq(onehot_seq, chroma_seq, x_all, y_all):
 
 # ファイルの読み込み
 def read_mus_xml_files(x, y, key_root, key_mode):
-    for f in glob.glob(MUS_DIR + "/*.xml"):
+    print(MUS_DIR + key_root + "_" + key_mode + "/*.xml")
+    for f in glob.glob(MUS_DIR + key_root + "_" + key_mode + "/*.xml"):
         print(f)
         score = music21.converter.parse(f)
         key = score.analyze("key")
-        if key.mode == key_mode:
-            inter = music21.interval.Interval(key.tonic, music21.pitch.Pitch(key_root))
-            score = score.transpose(inter)
-            note_seq, chord_seq = make_note_and_chord_seq_from_musicxml(score)
-            main_onehot_seq = add_rest_nodes(note_seq_to_onehot(note_seq))
-            main_chroma_seq = chord_seq_to_chroma(chord_seq)
-            divide_seq(main_onehot_seq, main_chroma_seq, x, y)
+        inter = music21.interval.Interval(key.tonic, music21.pitch.Pitch(key_root))
+        score = score.transpose(inter)
+        note_seq, chord_seq = make_note_and_chord_seq_from_musicxml(score)
+        main_onehot_seq = add_rest_nodes(note_seq_to_onehot(note_seq))
+        main_chroma_seq = chord_seq_to_chroma(chord_seq)
+        divide_seq(main_onehot_seq, main_chroma_seq, x, y)
     x_all = np.array(x)
     y_all = np.array(y)
     return x_all, y_all

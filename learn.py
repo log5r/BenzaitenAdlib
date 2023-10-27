@@ -14,7 +14,7 @@ def learn_and_generate_model(x, y, model_idf):
 
     # VAEモデル作成
     main_vae = bc.make_model(seq_length, input_dim, output_dim)
-    main_vae.fit(x, y, epochs=500)
+    main_vae.fit(x, y, epochs=250)
     main_vae.save(bc.BASE_DIR + "/mymodel_%s.h5" % model_idf)
 
 
