@@ -5,6 +5,7 @@ import numpy as np
 import random
 import benzaiten_config as cfg
 
+
 # コードのサフィックスを除外
 def remove_chord_suffix(chord_string):
     lst = list(chord_string)
@@ -439,3 +440,13 @@ def get_last_note(note_num_list):
         return 60
     else:
         return list(filter_list)[-1]
+
+
+def bump_up_low_note(note_list):
+    res = []
+    for i in note_list:
+        if 60 <= i < 67:
+            res.append(i + 12)
+        else:
+            res.append(i)
+    return res

@@ -73,6 +73,9 @@ def generate_adlib_files(model_type, features=None):
     # 同一ノートを結合
     durations, dur_fixed_notes = bc.calc_durations(corrected_notes)
 
+    if Features.BUMP_UP_LOW_TONE in features:
+        dur_fixed_notes = mu.bump_up_low_note(dur_fixed_notes)
+
     # サフィックス定義
     suffix = "%s_%s" % (model_type, "_".join(features))
 
