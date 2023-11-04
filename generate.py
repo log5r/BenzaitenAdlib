@@ -63,16 +63,24 @@ def generate_adlib_files(model_type, features=None):
     target_midi = bc.read_midi_file(backing_mus_path)
 
     # 補正
-    corrected_notes = mu.corrected_note_num_list(note_num_list, chord_prog_append, model_type, features)
+    if Features.CORRECTION_TYPE2 in features:
+        corrected_notes = mu.corrected_note_num_list_type2(note_num_list, chord_prog_append, model_type, features)
+    elif Features.CORRECTION_TYPE3 in features:
+        corrected_notes = mu.corrected_note_num_list_type3(note_num_list, chord_prog_append, model_type, features)
+    else:
+        corrected_notes = mu.corrected_note_num_list_type1(note_num_list, chord_prog_append, model_type, features)
 
     # 同一ノートを結合
     durations, dur_fixed_notes = bc.calc_durations(corrected_notes)
+
+    if Features.BUMP_UP_LOW_TONE in features:
+        dur_fixed_notes = mu.bump_up_low_note(dur_fixed_notes)
 
     # サフィックス定義
     suffix = "%s_%s" % (model_type, "_".join(features))
 
     # MIDIファイル生成
-    res_midi = bc.make_midi(dur_fixed_notes, durations, 12, target_midi, features)
+    res_midi = bc.make_midi(dur_fixed_notes, chord_prog_append, durations, 12, target_midi, features)
 
     # MIDIファイル補正
     arranged_midi = mu.arrange_using_midi(res_midi)
@@ -99,9 +107,20 @@ def generate_adlib_files(model_type, features=None):
 
 @print_proc_time
 def generate_file_set():
-    generate_adlib_files(ModelType.C_MAJOR, features=[Features.V2_SHUFFLE])
-    # generate_adlib_files(ModelType.A_MINOR)
-    # generate_adlib_files(ModelType.C_MAJOR, features=[Feature.STRICT_MODE])
+    generate_adlib_files(ModelType.C_MAJOR, features=[Features.CORRECTION_TYPE1])
+    generate_adlib_files(ModelType.C_MAJOR, features=[Features.CORRECTION_TYPE1, Features.V2_SHUFFLE, Features.TRIPLET_SEMIQUAVER])
+    # generate_adlib_files(ModelType.C_MAJOR, features=[Features.CORRECTION_TYPE2])
+    # generate_adlib_files(ModelType.C_MAJOR, features=[Features.CORRECTION_TYPE2, Features.V2_SHUFFLE])
+    generate_adlib_files(ModelType.C_MAJOR, features=[Features.CORRECTION_TYPE3])
+    generate_adlib_files(ModelType.C_MAJOR, features=[Features.CORRECTION_TYPE3, Features.V2_SHUFFLE])
+
+    generate_adlib_files(ModelType.A_MINOR, features=[Features.CORRECTION_TYPE1])
+    generate_adlib_files(ModelType.A_MINOR, features=[Features.CORRECTION_TYPE1, Features.V2_SHUFFLE, Features.TRIPLET_SEMIQUAVER])
+    # generate_adlib_files(ModelType.A_MINOR, features=[Features.CORRECTION_TYPE2])
+    # generate_adlib_files(ModelType.A_MINOR, features=[Features.CORRECTION_TYPE2, Features.V2_SHUFFLE])
+    generate_adlib_files(ModelType.A_MINOR, features=[Features.CORRECTION_TYPE3])
+    generate_adlib_files(ModelType.A_MINOR, features=[Features.CORRECTION_TYPE3, Features.V2_SHUFFLE])
+    # generate_adlib_files(ModelType.A_MINR, features=[Features.STRICT_MODE])
 
 
 generate_file_set()

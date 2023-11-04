@@ -1,9 +1,9 @@
-import random
-import music21.harmony as harmony
 import music21.midi
 import mido
 import common_features as Features
 import numpy as np
+import random
+import benzaiten_config as cfg
 
 
 # コードのサフィックスを除外
@@ -57,6 +57,32 @@ def note_canonicalization_conditions(i):
     ]
 
 
+def use_triplet_semiquaver_condition(i):
+    return [
+        # 1
+        False,
+        # 2
+        (16 <= i < 20),
+        (28 <= i < 32),
+        # 3
+        (32 <= i < 46),
+        (42 <= i < 48),
+        # 4
+        (56 <= i < 64),
+        # 5
+        (64 <= i < 80),
+        # 6
+        (80 <= i < 82),
+        (92 <= i < 96),
+        # 7
+        (96 <= i < 104),
+        (108 <= i < 112),
+        # 8
+        (112 <= i < 116),
+        (120 <= i)
+    ]
+
+
 def note_chain_breaking_condition(i):
     return [
         # 1
@@ -82,12 +108,13 @@ def note_chain_breaking_condition(i):
 
 
 # ノート補正
-def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
+def corrected_note_num_list_type1(note_num_list, chord_prog, model_type, features):
     res_note_list = []
     same_note_chain = 0
     through_count = 0
     bottom_count = 0
 
+    # コード機能でmやsus4など進行の雰囲気を表す重要な機能のため、無視するのはNG
     ignore_chord_suffix = Features.IGNORE_CHORD_SUFFIX in features
     use_swing_mode_via2t3 = Features.COPY_SQ2_TO_SQ3 in features
 
@@ -99,15 +126,13 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
     for i, e in enumerate(note_num_list):
         area_chord = chord_prog[i // 4]
 
-        if ignore_chord_suffix:
-            goal_chord = harmony.ChordSymbol(str(remove_chord_suffix(area_chord.figure)))
-        else:
-            goal_chord = area_chord
-
+        # if ignore_chord_suffix:
+        #     goal_chord = harmony.ChordSymbol(str(remove_chord_suffix(area_chord.figure)))
+        # else:
+        goal_chord = area_chord
         fixed_note = e
-        target_class = fixed_note % 12
-
-        good_notes = goal_chord.pitchClasses
+        target_class = fixed_note % 12  # 音階
+        good_notes = goal_chord.pitchClasses  # コード有効音階
 
         # --- 攻めの補正 ---
 
@@ -123,9 +148,12 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
                 fixed_note = 60 + random.choice(good_notes)
         elif 1 <= i < 3:
             fixed_note = res_note_list[-1]
-        elif 64 <= i < 76:
+        elif 64 <= i < 67:
+            pnb = ((res_note_list[-1]) // 12) * 12
+            fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[0]][i % 3]
+        elif 67 <= i < 76:
             pnb = ((6 + res_note_list[-1]) // 12) * 12
-            fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[-1] + 2][i % 3]
+            fixed_note = [pnb + good_notes[-2], pnb + good_notes[-1], pnb + good_notes[0]][i % 3]
         else:
             # --- 守りの補正 ---
             if fixed_note < 24:
@@ -160,7 +188,7 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
                     root_note = area_chord.root().midi % 12
                     avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
                     # 音補正
-                    fixed_note = fixed_note_num(e, valid_notes, avoid_notes)
+                    fixed_note = fixed_note_num(e, valid_notes, avoid_notes, i % cfg.BEAT_RESO)
                     print("note: %d %d" % (fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord.notes) + "|" + str(valid_notes))
 
             # 同一ノートが連続したときの処理
@@ -196,6 +224,97 @@ def corrected_note_num_list(note_num_list, chord_prog, model_type, features):
             res_note_list[i] += 12
 
     return res_note_list
+
+
+# ノート補正
+def corrected_note_num_list_type2(note_num_list, chord_prog, model_type, features):
+    fixed_note_num_list = []
+    prev_note = -1
+    # モデル名(C_major) からキー情報を作成
+    key, mode = model_type.split("_")
+    base_key = music21.key.Key(key, mode)
+    beat_reso = cfg.BEAT_RESO
+    # Ionian ならば、ベースノートは0とする
+    for i, e in enumerate(note_num_list):
+        if e == -1:
+            fixed_note_num_list.append(e)
+            continue
+        # オクターブレベル補正
+        e = min(max(60, e), 60 + 12 * 4)
+        # １オクターブ以上の移動は禁止
+        if i != 0 and abs(e - prev_note) > 12:
+            e = e + (prev_note % 12 - e % 12)  # 最寄りの音階の移動に修正
+        # Maj 7th の降下は禁止
+        if i != 0 and (prev_note - e) == 11:
+            e = prev_note + 1
+        # 半音階上昇のメロディはあまりないので禁止
+        if i != 0 and (e - prev_note) == 1:
+            e = prev_note + 4
+
+        # コードを取得
+        area_chord = chord_prog[i // 4]  # 1拍ごとにとりだし（4分音符単位のため）
+        # 有効コード音を取得
+        good_notes = list(map(lambda x: x.pitch.midi % 12, area_chord._notes))
+        good_notes = np.unique(good_notes)
+
+        # アボイドノートを取得
+        root_note = area_chord.root().midi % 12
+        avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
+        # 音補正
+        fixed_note = fixed_note_num(e, good_notes, avoid_notes, i % cfg.BEAT_RESO)
+        print("note: %d %d %d" % (i, fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord._notes) + "|" + str(good_notes))
+        fixed_note_num_list.append(fixed_note)
+        # 前の音を保存
+        prev_note = e
+
+    # 最終コードをもとにメロディ音を追加
+    last_measure_chord = chord_prog[-1]
+    fixed_note_num_list = fixed_note_num_list + [int(get_last_note(note_num_list) / 12) * 12 + last_measure_chord.root().midi % 12] * 8 + [int(get_last_note(note_num_list) / 12) * 12 + 4] * 8
+
+    return fixed_note_num_list
+
+
+# ノート補正
+def corrected_note_num_list_type3(note_num_list, chord_prog, model_type, features):
+    fixed_note_num_list = []
+    prev_note = -1
+    # モデル名(C_major) からキー情報を作成
+    key, mode = model_type.split("_")
+    base_key = music21.key.Key(key, mode)
+    beat_reso = cfg.BEAT_RESO
+    # Ionian ならば、ベースノートは0とする
+    for i, e in enumerate(note_num_list):
+        if e == -1:
+            fixed_note_num_list.append(e)
+            continue
+        # オクターブレベル補正
+        e = min(max(60, e), 60 + 12 * 4)
+        # １オクターブ以上の移動は禁止
+        if i != 0 and abs(e - prev_note) > 12:
+            e = e + (prev_note % 12 - e % 12)  # 最寄りの音階の移動に修正
+        # Maj 7th の降下は禁止
+        if i != 0 and (prev_note - e) == 11:
+            e = prev_note + 1
+
+        # コードを取得
+        area_chord = chord_prog[i // 4]  # 1拍ごとにとりだし（4分音符単位のため）
+        # 有効コード音を取得
+        valid_notes = [0, 2, 4, 7, 9]  # ヨナヌキ
+        # アボイドノートを取得
+        root_note = area_chord.root().midi % 12
+        avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
+        # 音補正
+        fixed_note = fixed_note_num(e, valid_notes, avoid_notes, 0)
+        print("note: %d %d %d" % (i, fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord._notes) + "|" + str(valid_notes))
+        fixed_note_num_list.append(fixed_note)
+        # 前の音を保存
+        prev_note = e
+
+    # 最終コードをもとにメロディ音を追加
+    last_measure_chord = chord_prog[-1]
+    fixed_note_num_list = fixed_note_num_list + [int(get_last_note(note_num_list) / 12) * 12 + last_measure_chord.root().midi % 12] * 8 + [int(get_last_note(note_num_list) / 12) * 12 + 4] * 8
+
+    return fixed_note_num_list
 
 
 def convex_increasing_bend_curve():
@@ -260,11 +379,14 @@ def arrange_using_midi(target_midi: music21.midi):
 
 
 # 音補正処理
-def fixed_note_num(note_num, valid_notes, avoid_notes):
+def fixed_note_num(note_num, valid_notes, avoid_notes, off_beat):
+    # ランダムでシャッフル
+    random.shuffle(valid_notes)
     if note_num == -1:
         return note_num
-    elif note_num % 12 in avoid_notes:
-        # アボイドノート時は最寄りの音に補正
+    elif (off_beat == 0 and note_num % 12 not in valid_notes) or (note_num % 12 in avoid_notes):
+        # オンビート時で有効な音階にない場合、コードトーンに乗せる
+        # もしくはアボイドノート時は最寄りの音に補正
         for i, e in enumerate(valid_notes):
             if (e - note_num % 12) > 0:
                 fixed_note = note_num + (e - note_num % 12)
@@ -310,3 +432,21 @@ def get_avoid_notes(area_chord, base_key, root_note):
         avoid_notes = []
     return avoid_notes
 
+
+def get_last_note(note_num_list):
+    filter_list = filter(lambda x: x != -1, note_num_list)
+    print(list(filter_list))
+    if len(list(filter_list)) == 0:
+        return 60
+    else:
+        return list(filter_list)[-1]
+
+
+def bump_up_low_note(note_list):
+    res = []
+    for i in note_list:
+        if 60 <= i < 67:
+            res.append(i + 12)
+        else:
+            res.append(i)
+    return res

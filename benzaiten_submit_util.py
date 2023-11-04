@@ -12,11 +12,11 @@ def make_midi_track(notenums, durations, transpose, ticks_per_beat):
         if notenums[i] > 0:
             curr_tick = int(i * ticks_per_beat / cfg.BEAT_RESO) + init_tick
             track.append(mido.Message('note_on', note=notenums[i] + transpose,
-                                      velocity=100, time=curr_tick - prev_tick))
+                                      velocity=127, time=curr_tick - prev_tick))
             prev_tick = curr_tick
             curr_tick = int((i + durations[i]) * ticks_per_beat / cfg.BEAT_RESO) + init_tick
             track.append(mido.Message('note_off', note=notenums[i] + transpose,
-                                      velocity=100, time=curr_tick - prev_tick))
+                                      velocity=127, time=curr_tick - prev_tick))
             prev_tick = curr_tick
     return track
 
