@@ -1,5 +1,4 @@
 import random
-
 import music21
 import numpy as np
 import matplotlib.pyplot as plt
