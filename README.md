@@ -1,41 +1,201 @@
 # BenzaitenAdlib
-Benzaiten Adlib TensorFlow version Sample for M1 Mac
 
-based on https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-naxh4brACQ/edit
+English | [日本語](README.ja.md)
 
-## How to setup
+BenzaitenAdlib is a Python program that generates improvised melodies from a chord progression and exports them as MIDI and WAV files with accompaniment. Developed as experimental code for the Benzaiten music generation contest, it combines a variational autoencoder (VAE) built with TensorFlow / TensorFlow Probability with rules for adjusting pitch and rhythm. It was originally provided as a sample for M1 Macs.
 
-1. Set up Python and TensorFlow for the M1Mac environment.
-   * see https://developer.apple.com/metal/tensorflow-plugin/ 
-1. Install each module.   
-   * Since the following import statements appear in the program, please install the respective modules so that these can be resolved:
-   ```python
-    import music21
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import mido
-    import csv
-    import IPython.display as ipd
-    import midi2audio
-    import glob
-    import tensorflow as tf
-    import tensorflow_probability as tfp
-   ```
+Training uses MusicXML scores containing melody notes and chord symbols. Generation uses a backing MIDI file and a chord progression CSV. By default, the program generates eight measures in four-measure segments, adds ending notes during post-processing, and places the melody after a four-measure introduction.
 
-1. Download the training musicXML from https://homepages.loria.fr/evincent/omnibook/ and place it in the `omnibook` directory.
+```text
+MusicXML → learn.py → Trained model and shape configuration
+                                      ↓
+Backing MIDI + chord CSV → generate.py → MIDI with backing / solo MIDI / WAV
+```
 
-1. Download the following sample file from the [here](https://drive.google.com/drive/folders/1jZSMX14B-i98x06QowaNL_9VGXeJZJbd) and place it in the `sample` directory. 
-1. Rename sample files as follows:
-   - sample1_backing.mid -> sample_backing.mid
-   - sample1_chord.csv -> sample_chord.csv
+## Before you start
 
-1. Obtain a soundfont and place it in the `soundfont` directory.
-   - For example, get `FluidR3_GM.sf2` from https://member.keymusician.com/Member/FluidR3_GM/index.html and place it in the soundfont directory.
+Currently, `learn.py` trains only the C major model, while `generate.py` loads both the C major and A minor models. If you are training from scratch, either enable A minor training as described below or limit generation to C major.
 
-1. Run `learn.py` to generate the model.
+Trained models, input samples, and the SoundFont are not tracked in Git. You can reuse them if they are already available locally, but cloning the repository alone does not provide everything needed for generation. Run all commands below from the project root.
 
-1. Run `generate.py` to output a midi file in the `output` directory with the melody on the accompaniment.
-   - At the same time, a wav file is output to the root directory.
+## 1. Set up the environment
 
+The following example uses Python 3.10 on macOS. Package versions match the local `requirements.txt`. [music21 9.1.0 requires Python 3.10 or later](https://pypi.org/pypi/music21/9.1.0/json), and [NumPy 1.22.4 provides macOS wheels for Python 3.10](https://pypi.org/project/numpy/1.22.4/). The complete training and generation workflow in a fresh environment was not tested as part of this README revision.
 
+```sh
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install \
+  music21==9.1.0 \
+  midi2audio==0.1.1 \
+  mido==1.3.0 \
+  matplotlib==3.7.2 \
+  tensorflow==2.13.0 \
+  tensorflow-probability==0.21.0 \
+  numpy==1.22.4
+```
 
+WAV rendering requires [FluidSynth itself in addition to the `midi2audio` Python package](https://github.com/bzamecnik/midi2audio). With Homebrew, install it as follows:
+
+```sh
+brew install fluidsynth
+```
+
+Create the input and output directories. `generate.py` does not create output directories automatically.
+
+```sh
+mkdir -p sample omnibook/C_major omnibook/A_minor soundfonts output contest_submit
+```
+
+## 2. Prepare the backing track, chords, and SoundFont
+
+Place the following three files at these exact paths, which are hardcoded in the source.
+
+| Path | Contents |
+| --- | --- |
+| `sample/sample_backing.mid` | Backing MIDI into which the generated melody is inserted |
+| `sample/sample_chord.csv` | Chord progression used for generation and pitch correction |
+| `soundfonts/FluidR3_GM.sf2` | SoundFont used for WAV rendering |
+
+The original README points to the [Benzaiten sample folder](https://drive.google.com/drive/folders/1jZSMX14B-i98x06QowaNL_9VGXeJZJbd) for backing tracks and chord progressions. For example, rename `sample1_backing.mid` and `sample1_chord.csv` to the names above. It also lists the [FluidR3_GM download page](https://member.keymusician.com/Member/FluidR3_GM/index.html) as a source for the SoundFont.
+
+### Backing MIDI requirements
+
+Generation **replaces the second track (`tracks[1]`) of the backing MIDI with the melody track**. Use a MIDI file with at least two tracks, with its second track reserved for replacement. The defaults assume 4/4 time, 480 ticks per quarter note, and a melody starting after four measures. Prepare custom backing files to match this layout.
+
+### Chord CSV format
+
+Use a CSV without a header, with one row for each chord change. Columns appear in this order:
+
+```text
+measure,beat,root,chord_kind,bass
+```
+
+For example, these rows place Fmaj7 on the first beat and E7 on the third beat of the first measure:
+
+```csv
+0,0,F,major-seventh,F
+0,2,E,dominant-seventh,E
+```
+
+Measure and beat numbers start at zero. Measure numbers are relative to the start of the melody and exclude the four-measure introduction. Use chord kinds accepted by music21's `ChordSymbol`, such as `major-seventh`, `minor-seventh`, and `dominant-seventh`. Beats without an explicit chord inherit the preceding chord.
+
+Always specify a chord at `0,0`. With the default settings, measures 0–7 are used for generation, and post-processing also reads measure 8 for the ending. To change the final chord, add a row such as `8,0,A,minor-seventh,A`.
+
+## 3. Prepare the trained models
+
+Each model needs an `.h5` file from which to load weights and a `.benzaitenconfig` file containing its shape settings. If you already have a matching pair, you can skip training and proceed to generation.
+
+| Model | Required files in the project root |
+| --- | --- |
+| C major | `mymodel_C_major.h5`, `C_major.benzaitenconfig` |
+| A minor | `mymodel_A_minor.h5`, `A_minor.benzaitenconfig` |
+
+### Training from MusicXML
+
+Obtain training scores, for example from the [Omnibook MusicXML collection](https://homepages.loria.fr/evincent/omnibook/), and separate major-key and minor-key pieces into these directories:
+
+```text
+omnibook/
+├── C_major/
+│   └── major_key_piece.xml
+└── A_minor/
+    └── minor_key_piece.xml
+```
+
+Only `*.xml` files directly inside each model directory are loaded. Files placed directly in `omnibook/` are not read. The code analyzes each piece's key and transposes it to the specified tonic, but does not sort pieces into major and minor groups. Classify them before training. The first part of each score is expected to contain a single-note melody and chord symbols.
+
+To train both models, uncomment these four lines at the end of `learn.py`:
+
+```python
+x_all_a_minor = []
+y_all_a_minor = []
+x_all_am, y_all_am = bc.read_mus_xml_files(x_all_a_minor, y_all_a_minor, "A", "minor")
+learn_and_generate_model(x_all_am, y_all_am, "A_minor")
+```
+
+Then run training:
+
+```sh
+python learn.py
+```
+
+Each model is trained for 50 epochs. The script writes its `.h5` and `.benzaitenconfig` files to the project root, overwriting existing files with the same names. The configuration stores three values: sequence length, input dimension, and output dimension.
+
+To try only C major, leave `learn.py` as it is and comment out the four active calls using `ModelType.A_MINOR` in `generate_file_set()` in `generate.py`.
+
+## 4. Generate improvisations
+
+Once the models and input files are ready, run:
+
+```sh
+python generate.py
+```
+
+By default, the program generates the following four variants for each of the C major and A minor models. Both models use the same backing track and chord progression.
+
+| Filename suffix | Pitch and rhythm processing |
+| --- | --- |
+| `type1` | Pitch correction based on chords and transitions between notes |
+| `type1_V2SH_16Tri` | Type 1 with shuffle timing and added sixteenth-note triplet notes |
+| `type3` | Pitch correction based on a pentatonic scale, with range, leap, and avoid-note adjustments |
+| `type3_V2SH` | Type 3 with shuffle timing |
+
+Each variant produces three files. A complete run of all eight default variants produces 24 files.
+
+| Output path | Contents |
+| --- | --- |
+| `output/<timestamp>_output_<model>_<suffix>.mid` | MIDI with accompaniment |
+| `contest_submit/<timestamp>_output_<model>_<suffix>_solo.mid` | Melody-only MIDI for submission |
+| `<timestamp>_<model>_<suffix>_output.wav` | Audio rendered from the MIDI with accompaniment, saved in the project root |
+
+The solo MIDI retains the initial four-measure delay. The backing track's tempo track is not copied, so standalone playback may use a different tempo from the MIDI with accompaniment. Generation and correction use randomness, so identical inputs do not necessarily produce identical melodies.
+
+## Configuration
+
+Edit `generate_file_set()` in `generate.py` to choose which variants to generate, and `benzaiten_config.py` to change the basic music settings. These options are not exposed as command-line arguments.
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `TOTAL_MEASURES` | `240` | Number of measures allocated for training data |
+| `UNIT_MEASURES` | `4` | Measures per training or generation segment |
+| `BEAT_RESO` | `4` | Subdivisions per beat: sixteenth-note resolution |
+| `N_BEATS` | `4` | Beats per measure |
+| `NOTENUM_FROM` / `NOTENUM_THRU` | `36` / `84` | Model's MIDI note range, with an exclusive upper bound |
+| `INTRO_BLANK_MEASURES` | `4` | Measures before the melody starts |
+| `MELODY_LENGTH` | `8` | Generated measures before ending adjustments |
+| `TICKS_PER_BEAT` | `480` | MIDI ticks per quarter note |
+| `MELODY_PROG_CHG` | `73` | Melody program number, starting at zero |
+
+Some processing still contains hardcoded assumptions of four beats per measure and four subdivisions per beat. Changing the meter or resolution requires code changes as well as configuration changes. If you change sequence length or note range, also check compatibility with the trained model's shape. The melody is transposed up 12 semitones when written to MIDI, so the output range is not identical to the model's note range.
+
+## Main source files
+
+| File | Role |
+| --- | --- |
+| `learn.py` | Loading MusicXML, training, and saving models |
+| `generate.py` | Loading models, generating melodies, and exporting files |
+| `benzaitencore.py` | LSTM-based VAE, music data conversion, and MIDI/WAV generation |
+| `music_utils.py` | Pitch correction, ending notes, and performance effects such as pitch bends |
+| `benzaiten_submit_util.py` | Creating solo MIDI files for submission and replacing program changes |
+| `benzaiten_config.py` | Measure, note range, and MIDI settings |
+| `common_model_type.py` / `common_features.py` | Model and correction-feature identifiers |
+
+`converter.py` is auxiliary code for experimenting with model loading. It is not part of the normal training and generation workflow.
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Missing `A_minor.benzaitenconfig` or `mymodel_A_minor.h5` | Enable A minor training or limit generation to C major. |
+| Array shape errors during training | Check that training files exist at the expected paths, such as `omnibook/C_major/*.xml`. |
+| Missing directory when saving MIDI | Create `output/` and `contest_submit/`, and run from the project root. |
+| MIDI files are created but WAV files are not | Check that the `fluidsynth` command and `soundfonts/FluidR3_GM.sf2` are available. |
+| Model weights cannot be loaded | Match the settings and library versions used for training and generation. Generation reconstructs the model and loads weights from the `.h5` file. |
+
+## Original material and license
+
+The original README credits this [Benzaiten document](https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-naxh4brACQ/edit) as the basis for the implementation.
+
+The repository's code is released under the MIT License; see [LICENSE](LICENSE). Check the respective providers' terms for training scores, backing samples, and SoundFonts.
