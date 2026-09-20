@@ -10,6 +10,9 @@ readme = "README.md"
 requires-python = ">=3.12,<3.14"
 dynamic = ["dependencies"]
 
+[project.optional-dependencies]
+test = ["coverage>=7.10,<8"]
+
 [project.scripts]
 benzaiten-learn = "benzaiten_adlib.learn:main"
 benzaiten-generate = "benzaiten_adlib.generate:main"
@@ -19,3 +22,12 @@ packages = ["benzaiten_adlib"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+
+[tool.coverage.run]
+branch = true
+source = ["benzaiten_adlib"]
+
+[tool.coverage.report]
+show_missing = true
+precision = 1
+fail_under = 90

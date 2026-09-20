@@ -215,3 +215,21 @@ Run `python -m benzaiten_adlib.learn` or `python -m benzaiten_adlib.generate` fr
 For commands available outside the project directory, install the checkout with `python -m pip install -e .` in the Python 3.13 environment described above, then use `benzaiten-learn` or `benzaiten-generate`. Dependencies are read from `requirements.txt`. Data paths default to this checkout's root; set `BENZAITEN_ROOT` to an absolute data directory to override them. A non-editable installation requires this variable to point to the prepared data directory. Models, samples, scores, and SoundFonts are not included in the Python package.
 
 Run all tests in the configured environment with `python -m unittest discover -s tests -v`. To run only the dependency-free structure tests, use `python -m unittest discover -s tests -p test_project_layout.py`. Create a source ZIP with `sh scripts/make_zip_of_code.sh`; this includes the package, scripts, experiments, tests, and documentation. Existing model and data directories retain their locations.
+
+To measure coverage, install the test extra in the same environment and run:
+
+```sh
+python -m pip install -e '.[test]'
+python -m coverage run -m unittest discover -s tests -v
+python -m coverage report
+python -m coverage html
+```
+
+Coverage includes every module in `benzaiten_adlib`, including unexecuted modules,
+and measures both statements and branches. The report command fails below 90%
+combined coverage; the HTML report is written to `htmlcov/index.html`.
+Tests use temporary MusicXML, chord CSV, and MIDI fixtures. Model training and
+serialization are tested with a small real model; generation uses synthetic
+predictions and verifies saved MIDI files. FluidSynth is mocked, so these tests
+do not validate rendered audio, external model/data files, or musical quality.
+Subprocess-only import checks are not included in the coverage measurement.

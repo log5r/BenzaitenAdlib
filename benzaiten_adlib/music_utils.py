@@ -434,12 +434,10 @@ def get_avoid_notes(area_chord, base_key, root_note):
 
 
 def get_last_note(note_num_list):
-    filter_list = filter(lambda x: x != -1, note_num_list)
-    print(list(filter_list))
-    if len(list(filter_list)) == 0:
-        return 60
-    else:
-        return list(filter_list)[-1]
+    for note in reversed(note_num_list):
+        if note != -1:
+            return note
+    return 60
 
 
 def bump_up_low_note(note_list):
