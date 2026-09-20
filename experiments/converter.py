@@ -1,48 +1,21 @@
-import os
-import tensorflow as tf
-import tensorflow_probability as tfp
+"""Copy legacy model weights into Keras 3's .weights.h5 format."""
+import argparse
+
 from benzaiten_adlib import paths
+from benzaiten_adlib.model_io import load_trained_model
 
-# --- DistributionLambda のシグネチャに trainable を追加し、from_config をオーバーライド ---
-class DistributionLambdaWrapper(tfp.layers.DistributionLambda):
-    def __init__(
-        self,
-        make_distribution_fn,
-        convert_to_tensor_fn=None,
-        trainable=True,
-        **kwargs
-    ):
-        # trainable は base Layer.__init__ で扱われないので自前で保持
-        super().__init__(make_distribution_fn, convert_to_tensor_fn, **kwargs)
-        self._trainable = trainable  # 内部状態に持たせる
-
-    @classmethod
-    def from_config(cls, config):
-        # config に含まれる trainable をそのまま取り出して渡す
-        trainable = config.pop("trainable", True)
-        return cls(**config, trainable=trainable)
 
 def main():
-    # モデルファイルのパス
-    h5_model_path = str(paths.MODEL_DIR / "mymodel_C_major.h5")
-
-    # custom_objects にラッパーを登録
-    custom_objects = {
-        "MultivariateNormalTriL": tfp.distributions.MultivariateNormalTriL,
-        "DistributionLambda": DistributionLambdaWrapper,
-    }
-
-    # モデルロード（load_model が trainable キーを渡しても OK）
-    keras_model = tf.keras.models.load_model(
-        h5_model_path,
-        custom_objects=custom_objects
-    )
-
-    # ここで全体を凍結
-    keras_model.trainable = False
-
-    # 以降、keras_model を用いた処理…
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('model', choices=['C_major', 'A_minor'])
+    args = parser.parse_args()
+    target = paths.MODEL_DIR / f'mymodel_{args.model}.weights.h5'
+    if target.exists():
+        parser.error(f'Output already exists: {target}')
+    model = load_trained_model(args.model)
+    model.save_weights(target)
+    print(target)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

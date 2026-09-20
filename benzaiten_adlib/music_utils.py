@@ -254,7 +254,7 @@ def corrected_note_num_list_type2(note_num_list, chord_prog, model_type, feature
         # コードを取得
         area_chord = chord_prog[i // 4]  # 1拍ごとにとりだし（4分音符単位のため）
         # 有効コード音を取得
-        good_notes = list(map(lambda x: x.pitch.midi % 12, area_chord._notes))
+        good_notes = list(map(lambda x: x.pitch.midi % 12, area_chord.notes))
         good_notes = np.unique(good_notes)
 
         # アボイドノートを取得
@@ -262,7 +262,7 @@ def corrected_note_num_list_type2(note_num_list, chord_prog, model_type, feature
         avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
         # 音補正
         fixed_note = fixed_note_num(e, good_notes, avoid_notes, i % cfg.BEAT_RESO)
-        print("note: %d %d %d" % (i, fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord._notes) + "|" + str(good_notes))
+        print("note: %d %d %d" % (i, fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord.notes) + "|" + str(good_notes))
         fixed_note_num_list.append(fixed_note)
         # 前の音を保存
         prev_note = e
@@ -305,7 +305,7 @@ def corrected_note_num_list_type3(note_num_list, chord_prog, model_type, feature
         avoid_notes = get_avoid_notes(area_chord, base_key, root_note)
         # 音補正
         fixed_note = fixed_note_num(e, valid_notes, avoid_notes, 0)
-        print("note: %d %d %d" % (i, fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord._notes) + "|" + str(valid_notes))
+        print("note: %d %d %d" % (i, fixed_note, (fixed_note % 12 if (fixed_note != -1) else -1)) + "|" + str(area_chord.notes) + "|" + str(valid_notes))
         fixed_note_num_list.append(fixed_note)
         # 前の音を保存
         prev_note = e

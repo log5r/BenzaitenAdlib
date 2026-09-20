@@ -7,7 +7,7 @@
 | `benzaiten_adlib/` | 学習・生成と共通処理のPythonパッケージ |
 | `scripts/` | フォルダ作成、出力整理、コードZIP作成の補助シェル |
 | `scripts/legacy/` | 過去の大会で使用した入力調整スクリプト |
-| `experiments/` | モデル読み込みの実験用コード |
+| `experiments/` | 旧形式モデルの重みを新形式へコピーする補助コード |
 | `tests/` | import時の副作用とデータ参照先の回帰テスト |
 | `pyproject.toml` | パッケージ定義とインストール後の起動コマンド |
 | `data/input-originals/2023-02/` | `sample1.zip`～`sample3.zip`の入力原本 |
@@ -57,3 +57,5 @@ shasum -a 256 -c data/input-originals/SHA256SUMS
 ## Pythonコードの整理
 
 Python実装は`benzaiten_adlib/`、補助シェルは`scripts/`、実験は`experiments/`へ分離しました。学習と生成は`python -m benzaiten_adlib.learn`と`python -m benzaiten_adlib.generate`で実行します。設定は`benzaiten_adlib/config.py`、データの参照先は`benzaiten_adlib/paths.py`に集約しています。インストール手順と`BENZAITEN_ROOT`の指定方法は[README](../README.ja.md#pythonプロジェクトの構成)を参照してください。上記の移動記録はデータ整理時の履歴で、今回のソースコード移動はGitの差分で確認できます。
+
+Python 3.13とKeras 3への更新内容、既存モデルとの互換性、検証範囲は[移行・検証記録](PYTHON_UPGRADE.md)にまとめています。新しい学習結果は`.weights.h5`で保存し、旧`.h5`も生成時に読み込めます。

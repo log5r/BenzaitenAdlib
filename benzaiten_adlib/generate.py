@@ -35,17 +35,9 @@ def generate_adlib_files(model_type, features=None):
     backing_file = paths.SAMPLE_DIR / "sample_backing.mid"
     chord_file = paths.SAMPLE_DIR / "sample_chord.csv"
 
-    # config読み込み
-    config_file = open(paths.MODEL_DIR / ("%s.benzaitenconfig" % model_type), 'r')
-    configurations = config_file.readlines()
-    seq_length = int(configurations[0])
-    input_dim = int(configurations[1])
-    output_dim = int(configurations[2])
-    config_file.close()
+    from .model_io import load_trained_model
 
-    # VAEモデルの読み込み
-    main_vae = bc.make_model(seq_length, input_dim, output_dim)
-    main_vae.load_weights(str(paths.MODEL_DIR / ("mymodel_%s.h5" % model_type)))
+    main_vae = load_trained_model(model_type)
 
     chord_prog = bc.read_chord_file(chord_file)
     chord_prog_append = bc.read_chord_file(chord_file, 1)

@@ -2,7 +2,7 @@
 
 [English](README.md) | 日本語
 
-BenzaitenAdlibは、コード進行に合わせたアドリブの旋律を生成し、伴奏付きのMIDIとWAVに出力するPythonプログラムです。音楽生成コンテスト「弁財天」向けの実験用コードで、TensorFlow / TensorFlow ProbabilityによるVAE（変分オートエンコーダ）と、音高・リズムを補正するルールを組み合わせています。もともとはM1 Mac向けのサンプルとして作成されました。
+BenzaitenAdlibは、コード進行に合わせたアドリブの旋律を生成し、伴奏付きのMIDIとWAVに出力するPythonプログラムです。音楽生成コンテスト「弁財天」向けの実験用コードで、TensorFlow / Keras 3によるVAE（変分オートエンコーダ）と、音高・リズムを補正するルールを組み合わせています。もともとはM1 Mac向けのサンプルとして作成されました。
 
 学習には旋律とコード記号を含むMusicXML、生成には伴奏MIDIとコード進行CSVを使います。既定では4小節単位で計8小節の旋律を生成し、補正処理で終止の音を加え、冒頭4小節の後から演奏させます。
 
@@ -20,21 +20,19 @@ MusicXML → benzaiten_adlib/learn.py → 学習済みモデルと形状設定
 
 ## 1. 実行環境を準備する
 
-以下はmacOSでPython 3.10を使うセットアップ例です。依存バージョンは手元の`requirements.txt`に合わせています。[music21 9.1.0はPython 3.10以上を要求](https://pypi.org/pypi/music21/9.1.0/json)し、[NumPy 1.22.4はPython 3.10向けのmacOS用wheelを提供](https://pypi.org/project/numpy/1.22.4/)しています。このREADMEの改訂時に、新規環境での学習・生成の通し実行は検証していません。
+**Python 3.13**を使用します。依存関係の指定上はPython 3.12にも対応します。Python 3.14には対応していません。[TensorFlow 2.21の公式ビルドはPython 3.13まで](https://www.tensorflow.org/install/source)です。macOSではTensorFlowがApple SiliconとmacOS 12以降を要求します。Intel Macは今回の更新対象に含めていません。
+
+既存の環境を残して、新しい仮想環境を作成します。
 
 ```sh
-python3.10 -m venv .venv
-source .venv/bin/activate
+python3.13 -m venv .venv-py313
+source .venv-py313/bin/activate
 python -m pip install --upgrade pip
-python -m pip install \
-  music21==9.1.0 \
-  midi2audio==0.1.1 \
-  mido==1.3.0 \
-  matplotlib==3.7.2 \
-  tensorflow==2.13.0 \
-  tensorflow-probability==0.21.0 \
-  numpy==1.22.4
+python -m pip install -e .
+python -m pip check
 ```
+
+`requirements.txt`ではTensorFlow 2.21.0、Keras 3.15.1、NumPy 2.5.3、music21 10.5.0、Matplotlib 3.11.2、mido 1.3.3、midi2audio 0.1.1を固定しています。TensorFlow Probabilityと旧`tf-keras`は不要です。検証環境とモデル互換性は[移行・検証記録](docs/PYTHON_UPGRADE.md)を参照してください。
 
 WAVへの変換には、Pythonパッケージの`midi2audio`に加えて、[FluidSynth本体が必要](https://github.com/bzamecnik/midi2audio)です。Homebrewを使う場合は次のようにインストールします。
 
@@ -85,7 +83,9 @@ sh scripts/setup_required_folders.sh
 
 ## 3. 学習済みモデルを用意する
 
-各モデルには、重みを読み込むための`.h5`ファイルと、モデルの形状を記録した`.benzaitenconfig`ファイルが必要です。対応する2ファイルがすでにある場合は、学習を省略して生成に進めます。
+各モデルには、重みを読み込むための`.weights.h5`（または旧形式の`.h5`）ファイルと、モデルの形状を記録した`.benzaitenconfig`ファイルが必要です。対応する2ファイルがすでにある場合は、学習を省略して生成に進めます。
+
+下表は変換なしで読み込める旧形式のファイルです。新しく学習した場合は`.h5`の代わりに`.weights.h5`を使用します。
 
 | モデル | 必要なファイル |
 | --- | --- |
@@ -106,24 +106,19 @@ omnibook/
 
 読み込み対象は各ディレクトリ直下の`*.xml`だけです。`omnibook/`直下に置いたファイルは読み込まれません。コードは楽曲の調を解析して指定の主音へ移調しますが、長調・短調の振り分けは行わないため、事前に分類してください。楽譜の最初のパートに単音の旋律とコード記号が入っていることを前提としています。
 
-両モデルを作る場合は、`benzaiten_adlib/learn.py`末尾の次の4行のコメントを外します。
-
-```python
-x_all_a_minor = []
-y_all_a_minor = []
-x_all_am, y_all_am = bc.read_mus_xml_files(x_all_a_minor, y_all_a_minor, "A", "minor")
-learn_and_generate_model(x_all_am, y_all_am, "A_minor")
-```
-
-その後、学習を実行します。
+既定ではC majorを50エポック学習します。
 
 ```sh
 python -m benzaiten_adlib.learn
 ```
 
-各モデルを50エポック学習し、`models/current/`に`.h5`と`.benzaitenconfig`を書き出します。同名ファイルがある場合は上書きします。形状設定には、系列長・入力次元・出力次元の3値を記録します。
+両モデルの学習やエポック数の変更は、引数で指定できます。
 
-C majorだけを試す場合は、`benzaiten_adlib/learn.py`をそのまま実行し、`benzaiten_adlib/generate.py`の`generate_file_set()`内にある`ModelType.A_MINOR`を指定した4つの有効な呼び出しをコメントアウトしてください。
+```sh
+python -m benzaiten_adlib.learn --models C_major A_minor --epochs 50
+```
+
+学習結果は`models/current/`の`mymodel_<モデル名>.weights.h5`と`<モデル名>.benzaitenconfig`に保存します。同名のファイルは上書きしますが、旧形式の`mymodel_<モデル名>.h5`は残します。形状設定には系列長・入力次元・出力次元の3値を記録します。両形式が存在する場合、生成時には`.weights.h5`を優先します。C majorだけを試す場合は、`benzaiten_adlib/generate.py`の`generate_file_set()`内にある`ModelType.A_MINOR`を指定した4つの有効な呼び出しをコメントアウトしてください。
 
 ## 4. アドリブを生成する
 
@@ -154,7 +149,7 @@ python -m benzaiten_adlib.generate
 
 ## 設定を変更する
 
-生成する組み合わせは`benzaiten_adlib/generate.py`の`generate_file_set()`で、音楽上の基本設定は`benzaiten_adlib/config.py`で変更します。コマンドライン引数による指定には対応していません。
+生成する組み合わせは`benzaiten_adlib/generate.py`の`generate_file_set()`で、音楽上の基本設定は`benzaiten_adlib/config.py`で変更します。音楽上の設定と生成パターンはコードで変更します。学習では`--models`と`--epochs`を使用できます。
 
 | 設定 | 既定値 | 用途 |
 | --- | --- | --- |
@@ -176,13 +171,14 @@ python -m benzaiten_adlib.generate
 | --- | --- |
 | `benzaiten_adlib/learn.py` | MusicXMLの読み込みとモデルの学習・保存 |
 | `benzaiten_adlib/generate.py` | モデルの読み込み、旋律生成、各形式への出力 |
-| `benzaiten_adlib/core.py` | LSTMを使うVAE、音楽データの変換、MIDI・WAV生成 |
+| `benzaiten_adlib/core.py` | 音楽データの変換とMIDI・WAV生成 |
+| `benzaiten_adlib/model.py` / `benzaiten_adlib/model_io.py` | Keras 3のVAEと新旧形式のモデル重みの読み込み |
 | `benzaiten_adlib/music_utils.py` | 音高補正、終止の追加、ピッチベンドなどの演奏処理 |
 | `benzaiten_adlib/submission.py` | 提出用ソロMIDIの作成と音色の差し替え |
 | `benzaiten_adlib/config.py` | 小節数・音域・MIDI関連の設定 |
 | `benzaiten_adlib/model_types.py` / `benzaiten_adlib/features.py` | モデル名と補正機能の識別子 |
 
-`experiments/converter.py`はモデル読み込みを試す補助コードで、通常の学習・生成手順では使いません。
+`experiments/converter.py`は旧形式の重みを新形式へコピーする補助コードです。`python -m experiments.converter C_major`（または`A_minor`）で実行します。元の`.h5`は残し、同名の`.weights.h5`がある場合は上書きせず終了します。生成するだけなら変換は不要です。
 
 ## エラーが出たとき
 
@@ -192,7 +188,7 @@ python -m benzaiten_adlib.generate
 | 学習時に配列の形状に関するエラーが出る | `omnibook/C_major/*.xml`など、対象の場所に学習用ファイルがあるか確認します。 |
 | MIDI保存時にディレクトリが見つからない | `sh scripts/setup_required_folders.sh`を実行し、出力先の書き込み権限を確認します。 |
 | MIDIはできるがWAVができない | `fluidsynth`コマンドと`soundfonts/FluidR3_GM.sf2`の有無を確認します。 |
-| モデルの重みを読み込めない | 学習時と生成時の設定・ライブラリのバージョンを合わせます。生成処理はモデルを再構築して`.h5`から重みを読み込む方式です。 |
+| モデルの重みを読み込めない | 学習時と生成時の設定・ライブラリのバージョンを合わせます。生成処理はモデルを再構築して`.weights.h5`または旧形式の`.h5`から重みを読み込む方式です。 |
 
 ## 元資料とライセンス
 
@@ -210,14 +206,14 @@ python -m benzaiten_adlib.generate
 benzaiten_adlib/    学習・生成と共通処理のPythonパッケージ
 scripts/           フォルダ作成・出力整理・WAV加工・コードZIP作成
 scripts/legacy/    過去の大会用の入力調整スクリプト
-experiments/       モデル読み込みの実験
+experiments/       旧形式モデルの重み変換
 tests/            回帰テスト
 pyproject.toml     パッケージ定義と起動コマンド
 requirements.txt   実行時の依存ライブラリと固定バージョン
 ```
 
-プロジェクト直下から`python -m benzaiten_adlib.learn`または`python -m benzaiten_adlib.generate`で起動します。パッケージ内のファイルを直接実行する形式には対応していません。モジュールをimportしただけでは学習・生成は始まりません。モデル読み込みの実験は`python -m experiments.converter`で実行します。
+プロジェクト直下から`python -m benzaiten_adlib.learn`または`python -m benzaiten_adlib.generate`で起動します。パッケージ内のファイルを直接実行する形式には対応していません。モジュールをimportしただけでは学習・生成は始まりません。任意のモデル変換は`python -m experiments.converter C_major`で実行します。
 
-別のディレクトリから起動する場合は、前述のPython 3.10環境で`python -m pip install -e .`を実行すると、`benzaiten-learn`と`benzaiten-generate`を使用できます。依存ライブラリは`requirements.txt`から読み込みます。データの参照先は既定でこのチェックアウトのルートです。変更する場合は環境変数`BENZAITEN_ROOT`にデータ用ディレクトリの絶対パスを指定します。通常のインストール（`-e`なし）では、この環境変数の指定が必要です。モデル、サンプル、学習用楽譜、SoundFontはPythonパッケージに含めません。
+別のディレクトリから起動する場合は、前述のPython 3.13環境で`python -m pip install -e .`を実行すると、`benzaiten-learn`と`benzaiten-generate`を使用できます。依存ライブラリは`requirements.txt`から読み込みます。データの参照先は既定でこのチェックアウトのルートです。変更する場合は環境変数`BENZAITEN_ROOT`にデータ用ディレクトリの絶対パスを指定します。通常のインストール（`-e`なし）では、この環境変数の指定が必要です。モデル、サンプル、学習用楽譜、SoundFontはPythonパッケージに含めません。
 
-構成変更の回帰テストは`python -m unittest discover -s tests`で実行でき、外部ライブラリは不要です。`sh scripts/make_zip_of_code.sh`はパッケージ、補助スクリプト、実験、テスト、ドキュメントを含むコードZIPを作成します。既存のモデルやデータの配置は維持しています。
+環境構築後、全テストを`python -m unittest discover -s tests -v`で実行できます。外部ライブラリ不要の構成テストだけを実行する場合は`python -m unittest discover -s tests -p test_project_layout.py`を使用します。`sh scripts/make_zip_of_code.sh`はパッケージ、補助スクリプト、実験、テスト、ドキュメントを含むコードZIPを作成します。既存のモデルやデータの配置は維持しています。

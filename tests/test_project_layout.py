@@ -38,14 +38,11 @@ import importlib
 import sys
 from unittest.mock import MagicMock
 names = ['music21', 'music21.midi', 'numpy', 'matplotlib', 'matplotlib.pyplot',
-         'mido', 'midi2audio', 'tensorflow', 'tensorflow_probability']
+         'mido', 'midi2audio', 'tensorflow']
 stubs = {name: MagicMock() for name in names}
-class DistributionLambda:
-    pass
-stubs['tensorflow_probability'].layers.DistributionLambda = DistributionLambda
 sys.modules.update(stubs)
 for name in ['config', 'features', 'model_types', 'paths', 'submission',
-             'music_utils', 'core', 'learn', 'generate']:
+             'music_utils', 'core', 'model_io', 'learn', 'generate']:
     importlib.import_module('benzaiten_adlib.' + name)
 importlib.import_module('experiments.converter')
 assert not any(stub.mock_calls for stub in stubs.values()), stubs

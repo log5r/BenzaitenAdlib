@@ -6,8 +6,6 @@ import mido
 import csv
 import midi2audio
 import glob
-import tensorflow as tf
-import tensorflow_probability as tfp
 import datetime
 import functools
 from . import config as cfg
@@ -19,56 +17,10 @@ from . import paths
 # ディレクトリ定義
 MUS_DIR = str(paths.MUSIC_DIR) + "/"
 
-# VAEモデル関連
-ENCODED_DIM = 32  # 潜在空間の次元数
-LSTM_DIM = 1024  # LSTM層のノード数
-
-
-# エンコーダを構築
-def make_encoder(prior, seq_length, input_dim):
-    encoder = tf.keras.Sequential()
-    encoder.add(tf.keras.layers.LSTM(LSTM_DIM,
-                                     input_shape=(seq_length, input_dim),
-                                     use_bias=True, activation="tanh",
-                                     return_sequences=False))
-    encoder.add(tf.keras.layers.Dense(
-        tfp.layers.MultivariateNormalTriL.params_size(ENCODED_DIM),
-        activation=None))
-    encoder.add(tfp.layers.MultivariateNormalTriL(
-        ENCODED_DIM,
-        activity_regularizer=tfp.layers.KLDivergenceRegularizer(
-            prior, weight=0.001)))
-    return encoder
-
-
-# デコーダを構築
-def make_decoder(seq_length, output_dim):
-    decoder = tf.keras.Sequential()
-    decoder.add(tf.keras.layers.RepeatVector(seq_length, input_dim=ENCODED_DIM))
-    decoder.add(tf.keras.layers.LSTM(LSTM_DIM, use_bias=True, activation="tanh", return_sequences=True))
-    decoder.add(tf.keras.layers.Dense(output_dim, use_bias=True, activation="softmax"))
-    return decoder
-
-
-# VAEに用いる事前分布を定義
-def make_prior():
-    tfd = tfp.distributions
-    prior = tfd.Independent(
-        tfd.Normal(loc=tf.zeros(ENCODED_DIM), scale=1),
-        reinterpreted_batch_ndims=1)
-    return prior
-
-
-# エンコーダとデコーダを構築し、それらを結合したモデルを構築する
-# (入力:エンコーダの入力、
-#  出力:エンコーダの出力をデコーダに入力して得られる出力)
 def make_model(seq_length, input_dim, output_dim):
-    encoder = make_encoder(make_prior(), seq_length, input_dim)
-    decoder = make_decoder(seq_length, output_dim)
-    vae = tf.keras.Model(encoder.inputs, decoder(encoder.outputs))
-    vae.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.0005),
-                loss="categorical_crossentropy", metrics="categorical_accuracy")
-    return vae
+    from .model import make_model as build_model
+
+    return build_model(seq_length, input_dim, output_dim)
 
 
 # MusicXMLデータからNote列とChordSymbol列を生成
@@ -82,8 +34,8 @@ def make_note_and_chord_seq_from_musicxml(score):
             measure_offset = element.offset
             for note in element.notes:
                 if isinstance(note, music21.note.Note):
-                    onset = measure_offset + note._activeSiteStoredOffset
-                    offset = onset + note._duration.quarterLength
+                    onset = measure_offset + note.offset
+                    offset = onset + note.duration.quarterLength
                     for i in range(int(onset * cfg.BEAT_RESO), int(offset * cfg.BEAT_RESO + 1)):
                         note_seq[i] = note
                 if isinstance(note, music21.harmony.ChordSymbol):
@@ -176,7 +128,7 @@ def chord_seq_to_chroma(chord_seq):
     for i in range(N):
         if chord_seq[i] is not None:
             transpose = 0
-            for note in chord_seq[i]._notes:
+            for note in chord_seq[i].notes:
                 # print(str(note.pitch) + ":" + str(note.pitch.midi))
                 # # C3(48)以下の場合は1オクターブ分底上げする
                 # if (note.pitch.midi < 48):

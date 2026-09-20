@@ -314,3 +314,6 @@ output_*.zip
 
 # Source distribution created by scripts/make_zip_of_code.sh.
 /BenzaitenAdlibCode.zip
+
+# Per-Python-version development environments.
+.venv-*/

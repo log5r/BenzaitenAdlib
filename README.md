@@ -2,7 +2,7 @@
 
 English | [日本語](README.ja.md)
 
-BenzaitenAdlib is a Python program that generates improvised melodies from a chord progression and exports them as MIDI and WAV files with accompaniment. Developed as experimental code for the Benzaiten music generation contest, it combines a variational autoencoder (VAE) built with TensorFlow / TensorFlow Probability with rules for adjusting pitch and rhythm. It was originally provided as a sample for M1 Macs.
+BenzaitenAdlib is a Python program that generates improvised melodies from a chord progression and exports them as MIDI and WAV files with accompaniment. Developed as experimental code for the Benzaiten music generation contest, it combines a variational autoencoder (VAE) built with TensorFlow / Keras 3 with rules for adjusting pitch and rhythm. It was originally provided as a sample for M1 Macs.
 
 Training uses MusicXML scores containing melody notes and chord symbols. Generation uses a backing MIDI file and a chord progression CSV. By default, the program generates eight measures in four-measure segments, adds ending notes during post-processing, and places the melody after a four-measure introduction.
 
@@ -20,21 +20,19 @@ Trained models, input samples, and the SoundFont are not tracked in Git. You can
 
 ## 1. Set up the environment
 
-The following example uses Python 3.10 on macOS. Package versions match the local `requirements.txt`. [music21 9.1.0 requires Python 3.10 or later](https://pypi.org/pypi/music21/9.1.0/json), and [NumPy 1.22.4 provides macOS wheels for Python 3.10](https://pypi.org/project/numpy/1.22.4/). The complete training and generation workflow in a fresh environment was not tested as part of this README revision.
+Use **Python 3.13** (Python 3.12 is also allowed by the dependency set). Python 3.14 is not supported: [TensorFlow 2.21 provides official builds through Python 3.13](https://www.tensorflow.org/install/source). On macOS, the current TensorFlow wheel requires Apple Silicon and macOS 12 or later. Intel Macs are outside this updated environment's scope.
+
+Create a separate environment to preserve any previous installation:
 
 ```sh
-python3.10 -m venv .venv
-source .venv/bin/activate
+python3.13 -m venv .venv-py313
+source .venv-py313/bin/activate
 python -m pip install --upgrade pip
-python -m pip install \
-  music21==9.1.0 \
-  midi2audio==0.1.1 \
-  mido==1.3.0 \
-  matplotlib==3.7.2 \
-  tensorflow==2.13.0 \
-  tensorflow-probability==0.21.0 \
-  numpy==1.22.4
+python -m pip install -e .
+python -m pip check
 ```
+
+`requirements.txt` pins TensorFlow 2.21.0, Keras 3.15.1, NumPy 2.5.3, music21 10.5.0, Matplotlib 3.11.2, mido 1.3.3, and midi2audio 0.1.1. TensorFlow Probability and legacy `tf-keras` are no longer required. See [the migration and validation notes](docs/PYTHON_UPGRADE.md) for the tested environment and model compatibility.
 
 WAV rendering requires [FluidSynth itself in addition to the `midi2audio` Python package](https://github.com/bzamecnik/midi2audio). With Homebrew, install it as follows:
 
@@ -85,7 +83,7 @@ Always specify a chord at `0,0`. With the default settings, measures 0–7 are u
 
 ## 3. Prepare the trained models
 
-Each model needs an `.h5` file from which to load weights and a `.benzaitenconfig` file containing its shape settings. If you already have a matching pair, you can skip training and proceed to generation.
+Each model needs a `.weights.h5` file (or a legacy `.h5` file) and a `.benzaitenconfig` file containing its shape settings. The paths below show the legacy files, which remain supported without conversion. If you already have a matching pair, you can skip training and proceed to generation.
 
 | Model | Required files |
 | --- | --- |
@@ -106,24 +104,19 @@ omnibook/
 
 Only `*.xml` files directly inside each model directory are loaded. Files placed directly in `omnibook/` are not read. The code analyzes each piece's key and transposes it to the specified tonic, but does not sort pieces into major and minor groups. Classify them before training. The first part of each score is expected to contain a single-note melody and chord symbols.
 
-To train both models, uncomment these four lines at the end of `benzaiten_adlib/learn.py`:
-
-```python
-x_all_a_minor = []
-y_all_a_minor = []
-x_all_am, y_all_am = bc.read_mus_xml_files(x_all_a_minor, y_all_a_minor, "A", "minor")
-learn_and_generate_model(x_all_am, y_all_am, "A_minor")
-```
-
-Then run training:
+Train C major with the default 50 epochs:
 
 ```sh
 python -m benzaiten_adlib.learn
 ```
 
-Each model is trained for 50 epochs. The script writes its `.h5` and `.benzaitenconfig` files to `models/current/`, overwriting existing files with the same names. The configuration stores three values: sequence length, input dimension, and output dimension.
+To train both models, or change the number of epochs:
 
-To try only C major, leave `benzaiten_adlib/learn.py` as it is and comment out the four active calls using `ModelType.A_MINOR` in `generate_file_set()` in `benzaiten_adlib/generate.py`.
+```sh
+python -m benzaiten_adlib.learn --models C_major A_minor --epochs 50
+```
+
+Training writes `mymodel_<model>.weights.h5` and `<model>.benzaitenconfig` to `models/current/`. Existing files with those names are overwritten; legacy `mymodel_<model>.h5` files are preserved. The configuration stores sequence length, input dimension, and output dimension. Generation prefers `.weights.h5` when both formats exist. To try only C major, comment out the four active calls using `ModelType.A_MINOR` in `generate_file_set()` in `benzaiten_adlib/generate.py`.
 
 ## 4. Generate improvisations
 
@@ -154,7 +147,7 @@ The solo MIDI retains the initial four-measure delay. The backing track's tempo 
 
 ## Configuration
 
-Edit `generate_file_set()` in `benzaiten_adlib/generate.py` to choose which variants to generate, and `benzaiten_adlib/config.py` to change the basic music settings. These options are not exposed as command-line arguments.
+Edit `generate_file_set()` in `benzaiten_adlib/generate.py` to choose which variants to generate, and `benzaiten_adlib/config.py` to change the basic music settings. Music settings and generation variants are edited in code; training accepts `--models` and `--epochs`.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
@@ -176,13 +169,14 @@ Some processing still contains hardcoded assumptions of four beats per measure a
 | --- | --- |
 | `benzaiten_adlib/learn.py` | Loading MusicXML, training, and saving models |
 | `benzaiten_adlib/generate.py` | Loading models, generating melodies, and exporting files |
-| `benzaiten_adlib/core.py` | LSTM-based VAE, music data conversion, and MIDI/WAV generation |
+| `benzaiten_adlib/core.py` | Music data conversion and MIDI/WAV generation |
+| `benzaiten_adlib/model.py` / `benzaiten_adlib/model_io.py` | Keras 3 VAE and loading current or legacy model weights |
 | `benzaiten_adlib/music_utils.py` | Pitch correction, ending notes, and performance effects such as pitch bends |
 | `benzaiten_adlib/submission.py` | Creating solo MIDI files for submission and replacing program changes |
 | `benzaiten_adlib/config.py` | Measure, note range, and MIDI settings |
 | `benzaiten_adlib/model_types.py` / `benzaiten_adlib/features.py` | Model and correction-feature identifiers |
 
-`experiments/converter.py` is auxiliary code for experimenting with model loading. It is not part of the normal training and generation workflow.
+`experiments/converter.py` optionally copies legacy weights into the new format: run `python -m experiments.converter C_major` (or `A_minor`). It preserves the source `.h5` and refuses to overwrite an existing `.weights.h5`. Conversion is not required for generation.
 
 ## Troubleshooting
 
@@ -192,7 +186,7 @@ Some processing still contains hardcoded assumptions of four beats per measure a
 | Array shape errors during training | Check that training files exist at the expected paths, such as `omnibook/C_major/*.xml`. |
 | Missing directory when saving MIDI | Run `sh scripts/setup_required_folders.sh` and check output directory permissions. |
 | MIDI files are created but WAV files are not | Check that the `fluidsynth` command and `soundfonts/FluidR3_GM.sf2` are available. |
-| Model weights cannot be loaded | Match the settings and library versions used for training and generation. Generation reconstructs the model and loads weights from the `.h5` file. |
+| Model weights cannot be loaded | Match the settings and library versions used for training and generation. Generation reconstructs the model and loads weights from `.weights.h5` or a legacy `.h5` file. |
 
 ## Original material and license
 
@@ -210,14 +204,14 @@ See [the directory guide](docs/DIRECTORY_GUIDE.md) for contest archives, experim
 benzaiten_adlib/    Application package (learn, generate, core, config, paths, utilities)
 scripts/           Setup, output cleanup, WAV trimming, and code ZIP tools
 scripts/legacy/    Historical contest input preparation
-experiments/       Model-loading experiment
+experiments/       Optional legacy model weight conversion
 tests/            Regression tests
 pyproject.toml     Package metadata and console commands
 requirements.txt   Pinned runtime dependencies
 ```
 
-Run `python -m benzaiten_adlib.learn` or `python -m benzaiten_adlib.generate` from the project root. Direct execution of individual package files is not supported. Importing the modules does not start training or generation. Run the model-loading experiment with `python -m experiments.converter`.
+Run `python -m benzaiten_adlib.learn` or `python -m benzaiten_adlib.generate` from the project root. Direct execution of individual package files is not supported. Importing the modules does not start training or generation. Run the optional conversion with `python -m experiments.converter C_major`.
 
-For commands available outside the project directory, install the checkout with `python -m pip install -e .` in the Python 3.10 environment described above, then use `benzaiten-learn` or `benzaiten-generate`. Dependencies are read from `requirements.txt`. Data paths default to this checkout's root; set `BENZAITEN_ROOT` to an absolute data directory to override them. A non-editable installation requires this variable to point to the prepared data directory. Models, samples, scores, and SoundFonts are not included in the Python package.
+For commands available outside the project directory, install the checkout with `python -m pip install -e .` in the Python 3.13 environment described above, then use `benzaiten-learn` or `benzaiten-generate`. Dependencies are read from `requirements.txt`. Data paths default to this checkout's root; set `BENZAITEN_ROOT` to an absolute data directory to override them. A non-editable installation requires this variable to point to the prepared data directory. Models, samples, scores, and SoundFonts are not included in the Python package.
 
-Run the dependency-free structure tests with `python -m unittest discover -s tests`. Create a source ZIP with `sh scripts/make_zip_of_code.sh`; this includes the package, scripts, experiments, tests, and documentation. Existing model and data directories retain their locations.
+Run all tests in the configured environment with `python -m unittest discover -s tests -v`. To run only the dependency-free structure tests, use `python -m unittest discover -s tests -p test_project_layout.py`. Create a source ZIP with `sh scripts/make_zip_of_code.sh`; this includes the package, scripts, experiments, tests, and documentation. Existing model and data directories retain their locations.

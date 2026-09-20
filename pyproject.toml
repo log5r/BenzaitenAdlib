@@ -7,7 +7,7 @@ name = "benzaiten-adlib"
 version = "0.1.0"
 description = "Chord-based improvised melody generation with a variational autoencoder"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.14"
 dynamic = ["dependencies"]
 
 [project.scripts]
