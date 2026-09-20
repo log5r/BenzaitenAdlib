@@ -1,13 +1,13 @@
-import benzaitencore as bc
-import music_utils as mu
+from . import core as bc
+from . import music_utils as mu
 import numpy as np
 import datetime
 import time
-import common_model_type as ModelType
-import common_features as Features
-import benzaiten_submit_util as bsu
-import benzaiten_config as cfg
-import project_paths as paths
+from . import model_types as ModelType
+from . import features as Features
+from . import submission as bsu
+from . import config as cfg
+from . import paths
 
 
 def print_proc_time(f):
@@ -32,8 +32,8 @@ def generate_adlib_files(model_type, features=None):
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
 
     # ファイル定義
-    backing_file = "sample/sample_backing.mid"
-    chord_file = "sample/sample_chord.csv"
+    backing_file = paths.SAMPLE_DIR / "sample_backing.mid"
+    chord_file = paths.SAMPLE_DIR / "sample_chord.csv"
 
     # config読み込み
     config_file = open(paths.MODEL_DIR / ("%s.benzaitenconfig" % model_type), 'r')
@@ -47,8 +47,8 @@ def generate_adlib_files(model_type, features=None):
     main_vae = bc.make_model(seq_length, input_dim, output_dim)
     main_vae.load_weights(str(paths.MODEL_DIR / ("mymodel_%s.h5" % model_type)))
 
-    chord_prog = bc.read_chord_file(bc.BASE_DIR + chord_file)
-    chord_prog_append = bc.read_chord_file(bc.BASE_DIR + chord_file, 1)
+    chord_prog = bc.read_chord_file(chord_file)
+    chord_prog_append = bc.read_chord_file(chord_file, 1)
     chroma_vec = bc.chord_seq_to_chroma(bc.make_chord_seq(chord_prog, cfg.N_BEATS))
     pianoroll = bc.make_empty_pianoroll(chroma_vec.shape[0])
     for i in range(0, cfg.MELODY_LENGTH, cfg.UNIT_MEASURES):
@@ -61,7 +61,7 @@ def generate_adlib_files(model_type, features=None):
     note_num_list = bc.calc_notenums_from_pianoroll(pianoroll)
 
     # 伴奏ファイルの生成
-    backing_mus_path = bc.BASE_DIR + "/" + backing_file
+    backing_mus_path = str(backing_file)
     target_midi = bc.read_midi_file(backing_mus_path)
 
     # 補正
@@ -123,4 +123,9 @@ def generate_file_set():
     # generate_adlib_files(ModelType.A_MINR, features=[Features.STRICT_MODE])
 
 
-generate_file_set()
+def main():
+    generate_file_set()
+
+
+if __name__ == "__main__":
+    main()

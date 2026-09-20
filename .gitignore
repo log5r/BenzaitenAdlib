@@ -311,3 +311,6 @@ output_*.zip
 /sample/*.mid
 /sample/*.csv
 /soundfonts/*.sf2
+
+# Source distribution created by scripts/make_zip_of_code.sh.
+/BenzaitenAdlibCode.zip

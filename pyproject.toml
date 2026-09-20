@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "benzaiten-adlib"
+version = "0.1.0"
+description = "Chord-based improvised melody generation with a variational autoencoder"
+readme = "README.md"
+requires-python = ">=3.10"
+dynamic = ["dependencies"]
+
+[project.scripts]
+benzaiten-learn = "benzaiten_adlib.learn:main"
+benzaiten-generate = "benzaiten_adlib.generate:main"
+
+[tool.setuptools]
+packages = ["benzaiten_adlib"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}

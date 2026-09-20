@@ -1,9 +1,9 @@
 import music21.midi
 import mido
-import common_features as Features
+from . import features as Features
 import numpy as np
 import random
-import benzaiten_config as cfg
+from . import config as cfg
 
 
 # コードのサフィックスを除外

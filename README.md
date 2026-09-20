@@ -7,14 +7,14 @@ BenzaitenAdlib is a Python program that generates improvised melodies from a cho
 Training uses MusicXML scores containing melody notes and chord symbols. Generation uses a backing MIDI file and a chord progression CSV. By default, the program generates eight measures in four-measure segments, adds ending notes during post-processing, and places the melody after a four-measure introduction.
 
 ```text
-MusicXML → learn.py → Trained model and shape configuration
+MusicXML → benzaiten_adlib/learn.py → Trained model and shape configuration
                                       ↓
-Backing MIDI + chord CSV → generate.py → MIDI with backing / solo MIDI / WAV
+Backing MIDI + chord CSV → benzaiten_adlib/generate.py → MIDI with backing / solo MIDI / WAV
 ```
 
 ## Before you start
 
-Currently, `learn.py` trains only the C major model, while `generate.py` loads both the C major and A minor models. If you are training from scratch, either enable A minor training as described below or limit generation to C major.
+Currently, `benzaiten_adlib/learn.py` trains only the C major model, while `benzaiten_adlib/generate.py` loads both the C major and A minor models. If you are training from scratch, either enable A minor training as described below or limit generation to C major.
 
 Trained models, input samples, and the SoundFont are not tracked in Git. You can reuse them if they are already available locally, but cloning the repository alone does not provide everything needed for generation. Run all commands below from the project root.
 
@@ -42,10 +42,10 @@ WAV rendering requires [FluidSynth itself in addition to the `midi2audio` Python
 brew install fluidsynth
 ```
 
-Create the input and output directories. `generate.py` also creates its output directories automatically.
+Create the input and output directories. `benzaiten_adlib/generate.py` also creates its output directories automatically.
 
 ```sh
-sh setup_required_folders.sh
+sh scripts/setup_required_folders.sh
 ```
 
 ## 2. Prepare the backing track, chords, and SoundFont
@@ -106,7 +106,7 @@ omnibook/
 
 Only `*.xml` files directly inside each model directory are loaded. Files placed directly in `omnibook/` are not read. The code analyzes each piece's key and transposes it to the specified tonic, but does not sort pieces into major and minor groups. Classify them before training. The first part of each score is expected to contain a single-note melody and chord symbols.
 
-To train both models, uncomment these four lines at the end of `learn.py`:
+To train both models, uncomment these four lines at the end of `benzaiten_adlib/learn.py`:
 
 ```python
 x_all_a_minor = []
@@ -118,19 +118,19 @@ learn_and_generate_model(x_all_am, y_all_am, "A_minor")
 Then run training:
 
 ```sh
-python learn.py
+python -m benzaiten_adlib.learn
 ```
 
 Each model is trained for 50 epochs. The script writes its `.h5` and `.benzaitenconfig` files to `models/current/`, overwriting existing files with the same names. The configuration stores three values: sequence length, input dimension, and output dimension.
 
-To try only C major, leave `learn.py` as it is and comment out the four active calls using `ModelType.A_MINOR` in `generate_file_set()` in `generate.py`.
+To try only C major, leave `benzaiten_adlib/learn.py` as it is and comment out the four active calls using `ModelType.A_MINOR` in `generate_file_set()` in `benzaiten_adlib/generate.py`.
 
 ## 4. Generate improvisations
 
 Once the models and input files are ready, run:
 
 ```sh
-python generate.py
+python -m benzaiten_adlib.generate
 ```
 
 By default, the program generates the following four variants for each of the C major and A minor models. Both models use the same backing track and chord progression.
@@ -154,7 +154,7 @@ The solo MIDI retains the initial four-measure delay. The backing track's tempo 
 
 ## Configuration
 
-Edit `generate_file_set()` in `generate.py` to choose which variants to generate, and `benzaiten_config.py` to change the basic music settings. These options are not exposed as command-line arguments.
+Edit `generate_file_set()` in `benzaiten_adlib/generate.py` to choose which variants to generate, and `benzaiten_adlib/config.py` to change the basic music settings. These options are not exposed as command-line arguments.
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
@@ -174,15 +174,15 @@ Some processing still contains hardcoded assumptions of four beats per measure a
 
 | File | Role |
 | --- | --- |
-| `learn.py` | Loading MusicXML, training, and saving models |
-| `generate.py` | Loading models, generating melodies, and exporting files |
-| `benzaitencore.py` | LSTM-based VAE, music data conversion, and MIDI/WAV generation |
-| `music_utils.py` | Pitch correction, ending notes, and performance effects such as pitch bends |
-| `benzaiten_submit_util.py` | Creating solo MIDI files for submission and replacing program changes |
-| `benzaiten_config.py` | Measure, note range, and MIDI settings |
-| `common_model_type.py` / `common_features.py` | Model and correction-feature identifiers |
+| `benzaiten_adlib/learn.py` | Loading MusicXML, training, and saving models |
+| `benzaiten_adlib/generate.py` | Loading models, generating melodies, and exporting files |
+| `benzaiten_adlib/core.py` | LSTM-based VAE, music data conversion, and MIDI/WAV generation |
+| `benzaiten_adlib/music_utils.py` | Pitch correction, ending notes, and performance effects such as pitch bends |
+| `benzaiten_adlib/submission.py` | Creating solo MIDI files for submission and replacing program changes |
+| `benzaiten_adlib/config.py` | Measure, note range, and MIDI settings |
+| `benzaiten_adlib/model_types.py` / `benzaiten_adlib/features.py` | Model and correction-feature identifiers |
 
-`converter.py` is auxiliary code for experimenting with model loading. It is not part of the normal training and generation workflow.
+`experiments/converter.py` is auxiliary code for experimenting with model loading. It is not part of the normal training and generation workflow.
 
 ## Troubleshooting
 
@@ -190,7 +190,7 @@ Some processing still contains hardcoded assumptions of four beats per measure a
 | --- | --- |
 | Missing `models/current/A_minor.benzaitenconfig` or `models/current/mymodel_A_minor.h5` | Enable A minor training or limit generation to C major. |
 | Array shape errors during training | Check that training files exist at the expected paths, such as `omnibook/C_major/*.xml`. |
-| Missing directory when saving MIDI | Run `sh setup_required_folders.sh` and check output directory permissions. |
+| Missing directory when saving MIDI | Run `sh scripts/setup_required_folders.sh` and check output directory permissions. |
 | MIDI files are created but WAV files are not | Check that the `fluidsynth` command and `soundfonts/FluidR3_GM.sf2` are available. |
 | Model weights cannot be loaded | Match the settings and library versions used for training and generation. Generation reconstructs the model and loads weights from the `.h5` file. |
 
@@ -203,3 +203,21 @@ The repository's code is released under the MIT License; see [LICENSE](LICENSE).
 ## Local file organization
 
 See [the directory guide](docs/DIRECTORY_GUIDE.md) for contest archives, experiments, and the move manifest. Original input ZIPs are preserved in `data/input-originals/2023-02/` (samples 1–3) and `data/input-originals/2023-10/` (samples 4–5). These date assignments are inferred from local file evidence. Keep these archives; extract a selected sample into a separate temporary directory before copying the MIDI/CSV into `sample/`. Verify originals from the project root with `shasum -a 256 -c data/input-originals/SHA256SUMS`. Archived files remain local and are excluded from Git.
+
+## Python project layout
+
+```text
+benzaiten_adlib/    Application package (learn, generate, core, config, paths, utilities)
+scripts/           Setup, output cleanup, WAV trimming, and code ZIP tools
+scripts/legacy/    Historical contest input preparation
+experiments/       Model-loading experiment
+tests/            Regression tests
+pyproject.toml     Package metadata and console commands
+requirements.txt   Pinned runtime dependencies
+```
+
+Run `python -m benzaiten_adlib.learn` or `python -m benzaiten_adlib.generate` from the project root. Direct execution of individual package files is not supported. Importing the modules does not start training or generation. Run the model-loading experiment with `python -m experiments.converter`.
+
+For commands available outside the project directory, install the checkout with `python -m pip install -e .` in the Python 3.10 environment described above, then use `benzaiten-learn` or `benzaiten-generate`. Dependencies are read from `requirements.txt`. Data paths default to this checkout's root; set `BENZAITEN_ROOT` to an absolute data directory to override them. A non-editable installation requires this variable to point to the prepared data directory. Models, samples, scores, and SoundFonts are not included in the Python package.
+
+Run the dependency-free structure tests with `python -m unittest discover -s tests`. Create a source ZIP with `sh scripts/make_zip_of_code.sh`; this includes the package, scripts, experiments, tests, and documentation. Existing model and data directories retain their locations.

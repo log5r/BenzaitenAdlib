@@ -10,15 +10,14 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 import datetime
 import functools
-import benzaiten_config as cfg
-import common_features as Feature
-import music_utils as mu
+from . import config as cfg
+from . import features as Feature
+from . import music_utils as mu
 import math
-import project_paths as paths
+from . import paths
 
 # ディレクトリ定義
-BASE_DIR = "./"
-MUS_DIR = BASE_DIR + "omnibook/"
+MUS_DIR = str(paths.MUSIC_DIR) + "/"
 
 # VAEモデル関連
 ENCODED_DIM = 32  # 潜在空間の次元数
@@ -300,7 +299,7 @@ def plot_pianoroll(pianoroll):
 
 # WAVを生成
 def generate_wav_file(model_idf, dst_filename):
-    sf_path = "soundfonts/FluidR3_GM.sf2"
+    sf_path = str(paths.SOUNDFONT_DIR / "FluidR3_GM.sf2")
     fs = midi2audio.FluidSynth(sound_font=sf_path)
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
     paths.ensure_output_dirs()

@@ -7,14 +7,14 @@ BenzaitenAdlibは、コード進行に合わせたアドリブの旋律を生成
 学習には旋律とコード記号を含むMusicXML、生成には伴奏MIDIとコード進行CSVを使います。既定では4小節単位で計8小節の旋律を生成し、補正処理で終止の音を加え、冒頭4小節の後から演奏させます。
 
 ```text
-MusicXML → learn.py → 学習済みモデルと形状設定
+MusicXML → benzaiten_adlib/learn.py → 学習済みモデルと形状設定
                               ↓
-伴奏MIDI + コード進行CSV → generate.py → 伴奏付きMIDI / ソロMIDI / WAV
+伴奏MIDI + コード進行CSV → benzaiten_adlib/generate.py → 伴奏付きMIDI / ソロMIDI / WAV
 ```
 
 ## 実行前に確認すること
 
-現在のコードでは、`learn.py`はC majorモデルだけを学習します。一方、`generate.py`はC majorとA minorの両モデルを読み込みます。初めて学習する場合は、後述の手順でA minorの学習も有効にするか、生成対象をC majorだけに変更してください。
+現在のコードでは、`benzaiten_adlib/learn.py`はC majorモデルだけを学習します。一方、`benzaiten_adlib/generate.py`はC majorとA minorの両モデルを読み込みます。初めて学習する場合は、後述の手順でA minorの学習も有効にするか、生成対象をC majorだけに変更してください。
 
 学習済みモデル、入力サンプル、SoundFontはGit管理されていません。手元にファイルがあれば再利用できますが、クローンしただけでは生成に必要な一式はそろいません。以下のコマンドは、すべてプロジェクトのルートディレクトリで実行します。
 
@@ -42,10 +42,10 @@ WAVへの変換には、Pythonパッケージの`midi2audio`に加えて、[Flui
 brew install fluidsynth
 ```
 
-入力・出力用のディレクトリも作成します。`generate.py`も出力先を自動作成します。
+入力・出力用のディレクトリも作成します。`benzaiten_adlib/generate.py`も出力先を自動作成します。
 
 ```sh
-sh setup_required_folders.sh
+sh scripts/setup_required_folders.sh
 ```
 
 ## 2. 伴奏・コード進行・音源を用意する
@@ -106,7 +106,7 @@ omnibook/
 
 読み込み対象は各ディレクトリ直下の`*.xml`だけです。`omnibook/`直下に置いたファイルは読み込まれません。コードは楽曲の調を解析して指定の主音へ移調しますが、長調・短調の振り分けは行わないため、事前に分類してください。楽譜の最初のパートに単音の旋律とコード記号が入っていることを前提としています。
 
-両モデルを作る場合は、`learn.py`末尾の次の4行のコメントを外します。
+両モデルを作る場合は、`benzaiten_adlib/learn.py`末尾の次の4行のコメントを外します。
 
 ```python
 x_all_a_minor = []
@@ -118,19 +118,19 @@ learn_and_generate_model(x_all_am, y_all_am, "A_minor")
 その後、学習を実行します。
 
 ```sh
-python learn.py
+python -m benzaiten_adlib.learn
 ```
 
 各モデルを50エポック学習し、`models/current/`に`.h5`と`.benzaitenconfig`を書き出します。同名ファイルがある場合は上書きします。形状設定には、系列長・入力次元・出力次元の3値を記録します。
 
-C majorだけを試す場合は、`learn.py`をそのまま実行し、`generate.py`の`generate_file_set()`内にある`ModelType.A_MINOR`を指定した4つの有効な呼び出しをコメントアウトしてください。
+C majorだけを試す場合は、`benzaiten_adlib/learn.py`をそのまま実行し、`benzaiten_adlib/generate.py`の`generate_file_set()`内にある`ModelType.A_MINOR`を指定した4つの有効な呼び出しをコメントアウトしてください。
 
 ## 4. アドリブを生成する
 
 モデルと入力ファイルを用意したら、次を実行します。
 
 ```sh
-python generate.py
+python -m benzaiten_adlib.generate
 ```
 
 既定ではC majorとA minorのそれぞれについて、次の4パターンを生成します。両モデルとも同じ伴奏とコード進行を使います。
@@ -154,7 +154,7 @@ python generate.py
 
 ## 設定を変更する
 
-生成する組み合わせは`generate.py`の`generate_file_set()`で、音楽上の基本設定は`benzaiten_config.py`で変更します。コマンドライン引数による指定には対応していません。
+生成する組み合わせは`benzaiten_adlib/generate.py`の`generate_file_set()`で、音楽上の基本設定は`benzaiten_adlib/config.py`で変更します。コマンドライン引数による指定には対応していません。
 
 | 設定 | 既定値 | 用途 |
 | --- | --- | --- |
@@ -174,15 +174,15 @@ python generate.py
 
 | ファイル | 役割 |
 | --- | --- |
-| `learn.py` | MusicXMLの読み込みとモデルの学習・保存 |
-| `generate.py` | モデルの読み込み、旋律生成、各形式への出力 |
-| `benzaitencore.py` | LSTMを使うVAE、音楽データの変換、MIDI・WAV生成 |
-| `music_utils.py` | 音高補正、終止の追加、ピッチベンドなどの演奏処理 |
-| `benzaiten_submit_util.py` | 提出用ソロMIDIの作成と音色の差し替え |
-| `benzaiten_config.py` | 小節数・音域・MIDI関連の設定 |
-| `common_model_type.py` / `common_features.py` | モデル名と補正機能の識別子 |
+| `benzaiten_adlib/learn.py` | MusicXMLの読み込みとモデルの学習・保存 |
+| `benzaiten_adlib/generate.py` | モデルの読み込み、旋律生成、各形式への出力 |
+| `benzaiten_adlib/core.py` | LSTMを使うVAE、音楽データの変換、MIDI・WAV生成 |
+| `benzaiten_adlib/music_utils.py` | 音高補正、終止の追加、ピッチベンドなどの演奏処理 |
+| `benzaiten_adlib/submission.py` | 提出用ソロMIDIの作成と音色の差し替え |
+| `benzaiten_adlib/config.py` | 小節数・音域・MIDI関連の設定 |
+| `benzaiten_adlib/model_types.py` / `benzaiten_adlib/features.py` | モデル名と補正機能の識別子 |
 
-`converter.py`はモデル読み込みを試す補助コードで、通常の学習・生成手順では使いません。
+`experiments/converter.py`はモデル読み込みを試す補助コードで、通常の学習・生成手順では使いません。
 
 ## エラーが出たとき
 
@@ -190,7 +190,7 @@ python generate.py
 | --- | --- |
 | `models/current/A_minor.benzaitenconfig`や`models/current/mymodel_A_minor.h5`が見つからない | A minorの学習を有効にするか、生成対象をC majorだけに変更します。 |
 | 学習時に配列の形状に関するエラーが出る | `omnibook/C_major/*.xml`など、対象の場所に学習用ファイルがあるか確認します。 |
-| MIDI保存時にディレクトリが見つからない | `sh setup_required_folders.sh`を実行し、出力先の書き込み権限を確認します。 |
+| MIDI保存時にディレクトリが見つからない | `sh scripts/setup_required_folders.sh`を実行し、出力先の書き込み権限を確認します。 |
 | MIDIはできるがWAVができない | `fluidsynth`コマンドと`soundfonts/FluidR3_GM.sf2`の有無を確認します。 |
 | モデルの重みを読み込めない | 学習時と生成時の設定・ライブラリのバージョンを合わせます。生成処理はモデルを再構築して`.h5`から重みを読み込む方式です。 |
 
@@ -203,3 +203,21 @@ python generate.py
 ## ローカルファイルの整理
 
 大会別の保存場所と移動履歴は[ディレクトリ案内](docs/DIRECTORY_GUIDE.md)に記載しています。入力ZIP原本は`data/input-originals/`に保管しています。再入手が困難なため、原本を残したまま別の作業フォルダへ展開し、使うMIDIとCSVを`sample/`へコピーしてください。
+
+## Pythonプロジェクトの構成
+
+```text
+benzaiten_adlib/    学習・生成と共通処理のPythonパッケージ
+scripts/           フォルダ作成・出力整理・WAV加工・コードZIP作成
+scripts/legacy/    過去の大会用の入力調整スクリプト
+experiments/       モデル読み込みの実験
+tests/            回帰テスト
+pyproject.toml     パッケージ定義と起動コマンド
+requirements.txt   実行時の依存ライブラリと固定バージョン
+```
+
+プロジェクト直下から`python -m benzaiten_adlib.learn`または`python -m benzaiten_adlib.generate`で起動します。パッケージ内のファイルを直接実行する形式には対応していません。モジュールをimportしただけでは学習・生成は始まりません。モデル読み込みの実験は`python -m experiments.converter`で実行します。
+
+別のディレクトリから起動する場合は、前述のPython 3.10環境で`python -m pip install -e .`を実行すると、`benzaiten-learn`と`benzaiten-generate`を使用できます。依存ライブラリは`requirements.txt`から読み込みます。データの参照先は既定でこのチェックアウトのルートです。変更する場合は環境変数`BENZAITEN_ROOT`にデータ用ディレクトリの絶対パスを指定します。通常のインストール（`-e`なし）では、この環境変数の指定が必要です。モデル、サンプル、学習用楽譜、SoundFontはPythonパッケージに含めません。
+
+構成変更の回帰テストは`python -m unittest discover -s tests`で実行でき、外部ライブラリは不要です。`sh scripts/make_zip_of_code.sh`はパッケージ、補助スクリプト、実験、テスト、ドキュメントを含むコードZIPを作成します。既存のモデルやデータの配置は維持しています。

@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+set -eu
+cd "$(dirname "$0")/../.."
+
 # これは試合本番で受け取ったファイルが想定と違ったので名前を変更したりするためにあわててかきあげたshell
 
 rm sample/*

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 生成先の .wav ファイルを処理
-cd "$(dirname "$0")/output/wav" || exit 1
+cd "$(dirname "$0")/../output/wav" || exit 1
 for file in *.wav; do
   # 入力ファイルが実際に存在するかどうかを確認
   if [ -f "$file" ]; then

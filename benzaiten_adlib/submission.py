@@ -1,5 +1,5 @@
 import mido
-import benzaiten_config as cfg
+from . import config as cfg
 
 
 # MIDIトラックを生成（make_midiから呼び出される）
