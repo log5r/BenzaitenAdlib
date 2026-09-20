@@ -7,7 +7,7 @@ cp ./*py ./$thisrepo/
 cp ./*sh ./$thisrepo/
 mkdir ./$thisrepo/omnibook
 mkdir ./$thisrepo/sample
-mkdir ./$thisrepo/output
+mkdir -p ./$thisrepo/output/midi ./$thisrepo/output/solo ./$thisrepo/output/wav ./$thisrepo/models/current
 mkdir ./$thisrepo/soundfonts
 
 zip -r ./${thisrepo}.zip ./${thisrepo}/

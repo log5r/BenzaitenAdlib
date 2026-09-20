@@ -42,10 +42,10 @@ WAVへの変換には、Pythonパッケージの`midi2audio`に加えて、[Flui
 brew install fluidsynth
 ```
 
-入力・出力用のディレクトリも作成します。`generate.py`は出力先を自動作成しません。
+入力・出力用のディレクトリも作成します。`generate.py`も出力先を自動作成します。
 
 ```sh
-mkdir -p sample omnibook/C_major omnibook/A_minor soundfonts output contest_submit
+sh setup_required_folders.sh
 ```
 
 ## 2. 伴奏・コード進行・音源を用意する
@@ -87,10 +87,10 @@ mkdir -p sample omnibook/C_major omnibook/A_minor soundfonts output contest_subm
 
 各モデルには、重みを読み込むための`.h5`ファイルと、モデルの形状を記録した`.benzaitenconfig`ファイルが必要です。対応する2ファイルがすでにある場合は、学習を省略して生成に進めます。
 
-| モデル | プロジェクト直下に必要なファイル |
+| モデル | 必要なファイル |
 | --- | --- |
-| C major | `mymodel_C_major.h5`、`C_major.benzaitenconfig` |
-| A minor | `mymodel_A_minor.h5`、`A_minor.benzaitenconfig` |
+| C major | `models/current/mymodel_C_major.h5`、`models/current/C_major.benzaitenconfig` |
+| A minor | `models/current/mymodel_A_minor.h5`、`models/current/A_minor.benzaitenconfig` |
 
 ### MusicXMLから学習する場合
 
@@ -121,7 +121,7 @@ learn_and_generate_model(x_all_am, y_all_am, "A_minor")
 python learn.py
 ```
 
-各モデルを50エポック学習し、プロジェクト直下に`.h5`と`.benzaitenconfig`を書き出します。同名ファイルがある場合は上書きします。形状設定には、系列長・入力次元・出力次元の3値を記録します。
+各モデルを50エポック学習し、`models/current/`に`.h5`と`.benzaitenconfig`を書き出します。同名ファイルがある場合は上書きします。形状設定には、系列長・入力次元・出力次元の3値を記録します。
 
 C majorだけを試す場合は、`learn.py`をそのまま実行し、`generate.py`の`generate_file_set()`内にある`ModelType.A_MINOR`を指定した4つの有効な呼び出しをコメントアウトしてください。
 
@@ -146,9 +146,9 @@ python generate.py
 
 | 出力先 | 内容 |
 | --- | --- |
-| `output/<日時>_output_<モデル>_<識別子>.mid` | 伴奏付きMIDI |
-| `contest_submit/<日時>_output_<モデル>_<識別子>_solo.mid` | 提出用の旋律トラックだけのMIDI |
-| `<日時>_<モデル>_<識別子>_output.wav` | 伴奏付きMIDIを音声化したWAV（プロジェクト直下） |
+| `output/midi/<日時>_output_<モデル>_<識別子>.mid` | 伴奏付きMIDI |
+| `output/solo/<日時>_output_<モデル>_<識別子>_solo.mid` | 提出用の旋律トラックだけのMIDI |
+| `output/wav/<日時>_<モデル>_<識別子>_output.wav` | 伴奏付きMIDIを音声化したWAV（`output/wav/`） |
 
 ソロMIDIにも冒頭4小節分の待ち時間が残ります。元の伴奏のテンポ用トラックはコピーされないため、単体再生時には伴奏付きMIDIとテンポが異なる場合があります。生成と補正には乱数を使うため、同じ入力でも毎回同じ旋律になるとは限りません。
 
@@ -188,9 +188,9 @@ python generate.py
 
 | 症状 | 確認する点 |
 | --- | --- |
-| `A_minor.benzaitenconfig`や`mymodel_A_minor.h5`が見つからない | A minorの学習を有効にするか、生成対象をC majorだけに変更します。 |
+| `models/current/A_minor.benzaitenconfig`や`models/current/mymodel_A_minor.h5`が見つからない | A minorの学習を有効にするか、生成対象をC majorだけに変更します。 |
 | 学習時に配列の形状に関するエラーが出る | `omnibook/C_major/*.xml`など、対象の場所に学習用ファイルがあるか確認します。 |
-| MIDI保存時にディレクトリが見つからない | `output/`と`contest_submit/`を作成し、プロジェクト直下から実行します。 |
+| MIDI保存時にディレクトリが見つからない | `sh setup_required_folders.sh`を実行し、出力先の書き込み権限を確認します。 |
 | MIDIはできるがWAVができない | `fluidsynth`コマンドと`soundfonts/FluidR3_GM.sf2`の有無を確認します。 |
 | モデルの重みを読み込めない | 学習時と生成時の設定・ライブラリのバージョンを合わせます。生成処理はモデルを再構築して`.h5`から重みを読み込む方式です。 |
 
@@ -199,3 +199,7 @@ python generate.py
 実装の元資料は、従来のREADMEで参照していた[弁財天の資料](https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-naxh4brACQ/edit)です。
 
 本リポジトリのコードはMITライセンスです。詳細は[LICENSE](LICENSE)を参照してください。学習用楽譜、伴奏サンプル、SoundFontの利用条件は、それぞれの配布元で確認してください。
+
+## ローカルファイルの整理
+
+大会別の保存場所と移動履歴は[ディレクトリ案内](docs/DIRECTORY_GUIDE.md)に記載しています。入力ZIP原本は`data/input-originals/`に保管しています。再入手が困難なため、原本を残したまま別の作業フォルダへ展開し、使うMIDIとCSVを`sample/`へコピーしてください。

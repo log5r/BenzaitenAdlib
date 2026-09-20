@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
 
-rm *.wav
-rm ./output/*.mid
-rm ./contest_submit/*.mid
+cd "$(dirname "$0")" || exit 1
+rm -f ./output/wav/*.wav ./output/midi/*.mid ./output/solo/*.mid

@@ -7,6 +7,7 @@ import common_model_type as ModelType
 import common_features as Features
 import benzaiten_submit_util as bsu
 import benzaiten_config as cfg
+import project_paths as paths
 
 
 def print_proc_time(f):
@@ -22,6 +23,7 @@ def print_proc_time(f):
 
 
 def generate_adlib_files(model_type, features=None):
+    paths.ensure_output_dirs()
     # 引数処理
     if features is None:
         features = []
@@ -34,7 +36,7 @@ def generate_adlib_files(model_type, features=None):
     chord_file = "sample/sample_chord.csv"
 
     # config読み込み
-    config_file = open("%s.benzaitenconfig" % model_type, 'r')
+    config_file = open(paths.MODEL_DIR / ("%s.benzaitenconfig" % model_type), 'r')
     configurations = config_file.readlines()
     seq_length = int(configurations[0])
     input_dim = int(configurations[1])
@@ -43,7 +45,7 @@ def generate_adlib_files(model_type, features=None):
 
     # VAEモデルの読み込み
     main_vae = bc.make_model(seq_length, input_dim, output_dim)
-    main_vae.load_weights(bc.BASE_DIR + "/mymodel_%s.h5" % model_type)
+    main_vae.load_weights(str(paths.MODEL_DIR / ("mymodel_%s.h5" % model_type)))
 
     chord_prog = bc.read_chord_file(bc.BASE_DIR + chord_file)
     chord_prog_append = bc.read_chord_file(bc.BASE_DIR + chord_file, 1)
@@ -91,14 +93,12 @@ def generate_adlib_files(model_type, features=None):
     fixed_midi = bsu.replace_prog_chg(arranged_midi)
 
     # MIDIファイルのセーブ
-    output_file = "output/%s_output_%s.mid" % (timestamp, suffix)
-    midi_out_path = bc.BASE_DIR + output_file
+    midi_out_path = str(paths.MIDI_DIR / ("%s_output_%s.mid" % (timestamp, suffix)))
     fixed_midi.save(midi_out_path)
 
     # 【弁財天第2幕用】提出用MIDIファイル生成
     sbm_midi = bsu.make_midi_for_submission_using_midi(fixed_midi)
-    sbm_output_file = "contest_submit/%s_output_%s_solo.mid" % (timestamp, suffix)
-    sbm_midi_out_path = bc.BASE_DIR + sbm_output_file
+    sbm_midi_out_path = str(paths.SOLO_DIR / ("%s_output_%s_solo.mid" % (timestamp, suffix)))
     sbm_midi.save(sbm_midi_out_path)
 
     # MWAVファイルを生成

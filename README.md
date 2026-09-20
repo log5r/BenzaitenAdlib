@@ -42,10 +42,10 @@ WAV rendering requires [FluidSynth itself in addition to the `midi2audio` Python
 brew install fluidsynth
 ```
 
-Create the input and output directories. `generate.py` does not create output directories automatically.
+Create the input and output directories. `generate.py` also creates its output directories automatically.
 
 ```sh
-mkdir -p sample omnibook/C_major omnibook/A_minor soundfonts output contest_submit
+sh setup_required_folders.sh
 ```
 
 ## 2. Prepare the backing track, chords, and SoundFont
@@ -87,10 +87,10 @@ Always specify a chord at `0,0`. With the default settings, measures 0–7 are u
 
 Each model needs an `.h5` file from which to load weights and a `.benzaitenconfig` file containing its shape settings. If you already have a matching pair, you can skip training and proceed to generation.
 
-| Model | Required files in the project root |
+| Model | Required files |
 | --- | --- |
-| C major | `mymodel_C_major.h5`, `C_major.benzaitenconfig` |
-| A minor | `mymodel_A_minor.h5`, `A_minor.benzaitenconfig` |
+| C major | `models/current/mymodel_C_major.h5`, `models/current/C_major.benzaitenconfig` |
+| A minor | `models/current/mymodel_A_minor.h5`, `models/current/A_minor.benzaitenconfig` |
 
 ### Training from MusicXML
 
@@ -121,7 +121,7 @@ Then run training:
 python learn.py
 ```
 
-Each model is trained for 50 epochs. The script writes its `.h5` and `.benzaitenconfig` files to the project root, overwriting existing files with the same names. The configuration stores three values: sequence length, input dimension, and output dimension.
+Each model is trained for 50 epochs. The script writes its `.h5` and `.benzaitenconfig` files to `models/current/`, overwriting existing files with the same names. The configuration stores three values: sequence length, input dimension, and output dimension.
 
 To try only C major, leave `learn.py` as it is and comment out the four active calls using `ModelType.A_MINOR` in `generate_file_set()` in `generate.py`.
 
@@ -146,9 +146,9 @@ Each variant produces three files. A complete run of all eight default variants 
 
 | Output path | Contents |
 | --- | --- |
-| `output/<timestamp>_output_<model>_<suffix>.mid` | MIDI with accompaniment |
-| `contest_submit/<timestamp>_output_<model>_<suffix>_solo.mid` | Melody-only MIDI for submission |
-| `<timestamp>_<model>_<suffix>_output.wav` | Audio rendered from the MIDI with accompaniment, saved in the project root |
+| `output/midi/<timestamp>_output_<model>_<suffix>.mid` | MIDI with accompaniment |
+| `output/solo/<timestamp>_output_<model>_<suffix>_solo.mid` | Melody-only MIDI for submission |
+| `output/wav/<timestamp>_<model>_<suffix>_output.wav` | Audio rendered from the MIDI with accompaniment, saved in `output/wav/` |
 
 The solo MIDI retains the initial four-measure delay. The backing track's tempo track is not copied, so standalone playback may use a different tempo from the MIDI with accompaniment. Generation and correction use randomness, so identical inputs do not necessarily produce identical melodies.
 
@@ -188,9 +188,9 @@ Some processing still contains hardcoded assumptions of four beats per measure a
 
 | Symptom | What to check |
 | --- | --- |
-| Missing `A_minor.benzaitenconfig` or `mymodel_A_minor.h5` | Enable A minor training or limit generation to C major. |
+| Missing `models/current/A_minor.benzaitenconfig` or `models/current/mymodel_A_minor.h5` | Enable A minor training or limit generation to C major. |
 | Array shape errors during training | Check that training files exist at the expected paths, such as `omnibook/C_major/*.xml`. |
-| Missing directory when saving MIDI | Create `output/` and `contest_submit/`, and run from the project root. |
+| Missing directory when saving MIDI | Run `sh setup_required_folders.sh` and check output directory permissions. |
 | MIDI files are created but WAV files are not | Check that the `fluidsynth` command and `soundfonts/FluidR3_GM.sf2` are available. |
 | Model weights cannot be loaded | Match the settings and library versions used for training and generation. Generation reconstructs the model and loads weights from the `.h5` file. |
 
@@ -199,3 +199,7 @@ Some processing still contains hardcoded assumptions of four beats per measure a
 The original README credits this [Benzaiten document](https://docs.google.com/document/d/1CizJ6b9i2yZ9OIDPrBWUROyJahlZrlqe-naxh4brACQ/edit) as the basis for the implementation.
 
 The repository's code is released under the MIT License; see [LICENSE](LICENSE). Check the respective providers' terms for training scores, backing samples, and SoundFonts.
+
+## Local file organization
+
+See [the directory guide](docs/DIRECTORY_GUIDE.md) for contest archives, experiments, and the move manifest. Original input ZIPs are preserved in `data/input-originals/2023-02/` (samples 1–3) and `data/input-originals/2023-10/` (samples 4–5). These date assignments are inferred from local file evidence. Keep these archives; extract a selected sample into a separate temporary directory before copying the MIDI/CSV into `sample/`. Verify originals from the project root with `shasum -a 256 -c data/input-originals/SHA256SUMS`. Archived files remain local and are excluded from Git.

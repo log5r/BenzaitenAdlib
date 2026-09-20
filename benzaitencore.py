@@ -14,6 +14,7 @@ import benzaiten_config as cfg
 import common_features as Feature
 import music_utils as mu
 import math
+import project_paths as paths
 
 # ディレクトリ定義
 BASE_DIR = "./"
@@ -302,7 +303,8 @@ def generate_wav_file(model_idf, dst_filename):
     sf_path = "soundfonts/FluidR3_GM.sf2"
     fs = midi2audio.FluidSynth(sound_font=sf_path)
     timestamp = format(datetime.datetime.now(), '%Y-%m-%d_%H-%M-%S')
-    generated_filename = "%s_%s_output.wav" % (timestamp, model_idf)
+    paths.ensure_output_dirs()
+    generated_filename = str(paths.WAV_DIR / ("%s_%s_output.wav" % (timestamp, model_idf)))
     fs.midi_to_audio(dst_filename, generated_filename)
 
 

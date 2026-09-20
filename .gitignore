@@ -295,3 +295,19 @@ poetry.toml
 
 sample*.zip
 output_*.zip
+
+# Local historical artifacts and model binaries (do not delete these to clean up).
+/archive/
+/models/
+/data/training-originals/
+/output/midi/
+/output/solo/
+/output/wav/
+
+# Local training scores, working inputs, and SoundFonts.
+# Keep these files on disk; source code and setup instructions remain tracked.
+/omnibook/C_major/
+/omnibook/A_minor/
+/sample/*.mid
+/sample/*.csv
+/soundfonts/*.sf2
